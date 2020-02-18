@@ -43,9 +43,6 @@ void runProgram(GLFWwindow* window, CommandLineOptions options)
         renderFrame(window);
 
 
-
-
-
         // Handle other events
         glfwPollEvents();
         handleKeyboardInput(window);

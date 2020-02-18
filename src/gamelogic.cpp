@@ -34,6 +34,7 @@ SceneNode* rootNode;
 SceneNode* boxNode;
 SceneNode* ballNode;
 SceneNode* padNode;
+SceneNode* lightBoxNode;
 
 double ballRadius = 3.0f;
 
@@ -88,17 +89,22 @@ void mouseCallback(GLFWwindow* window, double x, double y) {
 }
 
 //// A few lines to help you if you've never used c++ structs
-// struct LightSource {
-//     bool a_placeholder_value;
-// };
+struct LightSource {
+	SceneNode* lightNode;
+	glm::vec3 worldPos;
+	glm::vec3 color;
+ };
 // LightSource lightSources[/*Put number of light sources you want here*/];
+
+unsigned int const  numLights = 3;
+LightSource lightSources[numLights];
+
 
 void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     buffer = new sf::SoundBuffer();
     if (!buffer->loadFromFile("../res/Hall of the Mountain King.ogg")) {
         return;
     }
-
     options = gameOptions;
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
@@ -112,22 +118,47 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     Mesh pad = cube(padDimensions, glm::vec2(30, 40), true);
     Mesh box = cube(boxDimensions, glm::vec2(90), true, true);
     Mesh sphere = generateSphere(1.0, 40, 40);
+	Mesh lightBox = cube(glm::vec3(5, 5, 5), glm::vec2(30), true);
 
     // Fill buffers
     unsigned int ballVAO = generateBuffer(sphere);
     unsigned int boxVAO  = generateBuffer(box);
     unsigned int padVAO  = generateBuffer(pad);
+	unsigned int lightBoxVAO = generateBuffer(lightBox);			// Just for testing
 
     // Construct scene
     rootNode = createSceneNode();
     boxNode  = createSceneNode();
     padNode  = createSceneNode();
     ballNode = createSceneNode();
+	lightBoxNode = createSceneNode();
 
+	
+	for (int light = 0; light < numLights; light++) {
+		lightSources[light].lightNode = createSceneNode();
+		lightSources[light].lightNode->vertexArrayObjectID = light;
+		lightSources[light].lightNode->nodeType = POINT_LIGHT;
+		lightSources[light].color = glm::vec3(0.99, 0.99, 0.99);
+	}
+	
     rootNode->children.push_back(boxNode);
     rootNode->children.push_back(padNode);
     rootNode->children.push_back(ballNode);
+	
+	boxNode->children.push_back(lightSources[0].lightNode);
+	boxNode->children.push_back(lightSources[1].lightNode);
+	padNode->children.push_back(lightSources[2].lightNode);
 
+	/*
+	lightSources[2].lightNode->children.push_back(lightBoxNode);			// Used to check light positions
+	lightBoxNode->vertexArrayObjectID = lightBoxVAO;
+	lightBoxNode->VAOIndexCount = lightBox.indices.size();
+	*/
+
+	lightSources[0].lightNode->position = glm::vec3(80.0, -20.0, -25.0);
+	lightSources[1].lightNode->position = glm::vec3(60.0, 30.0, -30.0);
+	lightSources[2].lightNode->position = glm::vec3(0.0, 15.0, 0.0);
+	
     boxNode->vertexArrayObjectID = boxVAO;
     boxNode->VAOIndexCount = box.indices.size();
 
@@ -137,10 +168,8 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     ballNode->vertexArrayObjectID = ballVAO;
     ballNode->VAOIndexCount = sphere.indices.size();
 
-
-
-
-
+	// Send number of lights to shader
+	glUniform1i(6, numLights);
 
     getTimeDeltaSeconds();
 
@@ -308,6 +337,8 @@ void updateFrame(GLFWwindow* window) {
 
     glm::vec3 cameraPosition = glm::vec3(0, 2, -20);
 
+	glUniform3fv(10, 1, glm::value_ptr(cameraPosition));
+
     // Some math to make the camera move in a nice way
     float lookRotation = -0.6 / (1 + exp(-5 * (padPositionX-0.5))) + 0.3;
     glm::mat4 cameraTransform = 
@@ -330,14 +361,11 @@ void updateFrame(GLFWwindow* window) {
         boxNode->position.z - (boxDimensions.z/2) + (padDimensions.z/2) + (1 - padPositionZ) * (boxDimensions.z - padDimensions.z)
     };
 
-    updateNodeTransformations(rootNode, VP);
-
-
-
+    updateNodeTransformations(rootNode, glm::mat4(1.0f), VP);
 
 }
 
-void updateNodeTransformations(SceneNode* node, glm::mat4 transformationThusFar) {
+void updateNodeTransformations(SceneNode* node, glm::mat4 transformationThusFar, glm::mat4 viewProjection) {
     glm::mat4 transformationMatrix =
               glm::translate(node->position)
             * glm::translate(node->referencePoint)
@@ -348,20 +376,30 @@ void updateNodeTransformations(SceneNode* node, glm::mat4 transformationThusFar)
             * glm::translate(-node->referencePoint);
 
     node->currentTransformationMatrix = transformationThusFar * transformationMatrix;
+	node->MVPMatrix = viewProjection * node->currentTransformationMatrix;
 
     switch(node->nodeType) {
         case GEOMETRY: break;
-        case POINT_LIGHT: break;
+		case POINT_LIGHT:
+			// Calculating the world coordinates of a light source by multiplying the transformation matrix by the origin of the world space
+			glm::vec4 origin = glm::vec4(0, 0, 0, 1.0);
+			lightSources[node->vertexArrayObjectID].worldPos = glm::vec3(node->currentTransformationMatrix * origin);
+			//printf("Light: %i, Position: (%f, %f, %f)\n", node->vertexArrayObjectID,
+			//	lightSources[node->vertexArrayObjectID].worldPos.x, lightSources[node->vertexArrayObjectID].worldPos.y, lightSources[node->vertexArrayObjectID].worldPos.z);
+			break;
         case SPOT_LIGHT: break;
     }
 
     for(SceneNode* child : node->children) {
-        updateNodeTransformations(child, node->currentTransformationMatrix);
+        updateNodeTransformations(child, node->currentTransformationMatrix, viewProjection);
     }
 }
 
 void renderNode(SceneNode* node) {
-    glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(node->currentTransformationMatrix));
+    glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(node->MVPMatrix));
+	glUniformMatrix4fv(4, 1, GL_FALSE, glm::value_ptr(node->currentTransformationMatrix));
+	glm::mat3 normalMatrix = glm::mat3(transpose(inverse(node->currentTransformationMatrix)));
+	glUniformMatrix3fv(5, 1, GL_FALSE, glm::value_ptr(normalMatrix));
 
     switch(node->nodeType) {
         case GEOMETRY:
@@ -370,7 +408,15 @@ void renderNode(SceneNode* node) {
                 glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
             }
             break;
-        case POINT_LIGHT: break;
+        case POINT_LIGHT:
+		{
+			GLint location_position = shader->getUniformFromName(fmt::format("pointLights[{}].position", node->vertexArrayObjectID));		// Vertex array obj ID = light ID
+			glUniform3fv(location_position, 1, glm::value_ptr(lightSources[node->vertexArrayObjectID].worldPos));
+
+			GLint location_color = shader->getUniformFromName(fmt::format("pointLights[{}].color", node->vertexArrayObjectID));
+			glUniform3fv(location_color, 1, glm::value_ptr(lightSources[node->vertexArrayObjectID].color));
+		}
+			break;
         case SPOT_LIGHT: break;
     }
 
