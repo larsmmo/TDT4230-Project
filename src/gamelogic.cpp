@@ -41,6 +41,7 @@ double ballRadius = 3.0f;
 // These are heap allocated, because they should not be initialised at the start of the program
 sf::SoundBuffer* buffer;
 Gloom::Shader* shader;
+Gloom::Shader* depthShader;
 sf::Sound* sound;
 
 const glm::vec3 boxDimensions(180, 90, 90);
@@ -69,6 +70,7 @@ double gameElapsedTime = debug_startTime;
 double mouseSensitivity = 1.0;
 double lastMouseX = windowWidth / 2;
 double lastMouseY = windowHeight / 2;
+
 void mouseCallback(GLFWwindow* window, double x, double y) {
     int windowWidth, windowHeight;
     glfwGetWindowSize(window, &windowWidth, &windowHeight);
@@ -99,6 +101,9 @@ struct LightSource {
 unsigned int const  numLights = 3;
 LightSource lightSources[numLights];
 
+// Variables for shadow mapping
+unsigned int depthMapFrameBuffer;
+unsigned int depthCubemap;
 
 void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     buffer = new sf::SoundBuffer();
@@ -111,8 +116,12 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     glfwSetCursorPosCallback(window, mouseCallback);
 
     shader = new Gloom::Shader();
-    shader->makeBasicShader("../res/shaders/simple.vert", "../res/shaders/simple.frag");
+    shader->makeBasicShader("../res/shaders/simple.vert", "../res/shaders/simple.frag", "../res/shaders/simple.geom");
     shader->activate();
+
+	// Create another shader for shadow mapping
+	depthShader = new Gloom::Shader();
+	depthShader->makeBasicShader("../res/shaders/depth.vert", "../res/shaders/depth.frag", "../res/shaders/depth.geom");
 
     // Create meshes
     Mesh pad = cube(padDimensions, glm::vec2(30, 40), true);
@@ -138,7 +147,7 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 		lightSources[light].lightNode = createSceneNode();
 		lightSources[light].lightNode->vertexArrayObjectID = light;
 		lightSources[light].lightNode->nodeType = POINT_LIGHT;
-		lightSources[light].color = glm::vec3(0.99, 0.99, 0.99);
+		lightSources[light].color[light] = 1.0;
 	}
 	
     rootNode->children.push_back(boxNode);
@@ -156,7 +165,7 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 	*/
 
 	lightSources[0].lightNode->position = glm::vec3(80.0, -20.0, -25.0);
-	lightSources[1].lightNode->position = glm::vec3(60.0, 30.0, -30.0);
+	lightSources[1].lightNode->position = glm::vec3(60.0, -20.0, -5.0);
 	lightSources[2].lightNode->position = glm::vec3(0.0, 15.0, 0.0);
 	
     boxNode->vertexArrayObjectID = boxVAO;
@@ -171,11 +180,46 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 	// Send number of lights to shader
 	glUniform1i(6, numLights);
 
+	// Set up cubemap and frame buffer for shadow mapping
+	glGenFramebuffers(1, &depthMapFrameBuffer);
+	glGenTextures(1, &depthCubemap);
+
+	// Each of the 6 faces is a 2D depth-value texture
+	glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+	for (unsigned int i = 0; i < 6; ++i) {
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, 1024, 1024, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	}
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+	// Attach cubemap as the depth attachment of the framebuffer
+	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFrameBuffer);
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap, 0);
+
+	// Tell OpenGL not to not render to color buffer (only need depth values)
+	glDrawBuffer(GL_NONE);
+	glReadBuffer(GL_NONE);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     getTimeDeltaSeconds();
 
     std::cout << fmt::format("Initialized scene with {} SceneNodes.", totalChildren(rootNode)) << std::endl;
 
     std::cout << "Ready. Click to start!" << std::endl;
+}
+
+std::vector<glm::mat4> lightSpaceTransform(glm::mat4 projection, LightSource light) {
+	// Calculate the 6 different light space matrices for each face of the cubemap used in shadow mapping (look in all 6 directions)
+	std::vector<glm::mat4> shadowTransforms;
+	shadowTransforms.push_back(projection * glm::lookAt(light.worldPos, light.worldPos + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
+	shadowTransforms.push_back(projection * glm::lookAt(light.worldPos, light.worldPos + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
+	shadowTransforms.push_back(projection * glm::lookAt(light.worldPos, light.worldPos + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));
+	shadowTransforms.push_back(projection * glm::lookAt(light.worldPos, light.worldPos + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0)));
+	shadowTransforms.push_back(projection * glm::lookAt(light.worldPos, light.worldPos + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0)));
+	shadowTransforms.push_back(projection * glm::lookAt(light.worldPos, light.worldPos + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0)));
 }
 
 void updateFrame(GLFWwindow* window) {
@@ -360,6 +404,27 @@ void updateFrame(GLFWwindow* window) {
         boxNode->position.y - (boxDimensions.y/2) + (padDimensions.y/2), 
         boxNode->position.z - (boxDimensions.z/2) + (padDimensions.z/2) + (1 - padPositionZ) * (boxDimensions.z - padDimensions.z)
     };
+
+	// Adding shadows
+	// Render the scene from the light's perspective
+	glm::mat4 shadowProjection = glm::perspective(glm::radians(90.0f), float(1024.0) / float(1024.0), 0.1f, 350.f);
+	std::vector<glm::mat4> shadowTransforms = lightSpaceTransform(shadowProjection, lightSources[1]);
+
+	// Render to depth cubemap
+	glViewport(0, 0, 1024, 1024);
+	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFrameBuffer);
+	glClear(GL_DEPTH_BUFFER_BIT);
+	depthShader->activate();
+	for (unsigned int i = 0; i < 6; ++i) {
+		GLint location_shadowMat = depthShader->getUniformFromName(fmt::format("shadowMatrices[{}]", i));
+		glUniformMatrix4fv(location_shadowMat, 1, false, glm::value_ptr(shadowTransforms[i]));
+	}
+		
+	simpleDepthShader.setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
+	simpleDepthShader.setFloat("far_plane", 350.0f);
+	simpleDepthShader.setVec3("lightPos", lightSources[1].worldPos);
+	renderScene(simpleDepthShader);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     updateNodeTransformations(rootNode, glm::mat4(1.0f), VP);
 

@@ -80,17 +80,17 @@ namespace Gloom
                 glGetProgramInfoLog(mProgram, mLength, nullptr, buffer.get());
                 fprintf(stderr, "%s\n", buffer.get());
             }
-
             assert(mStatus);
         }
 
 
         /* Convenience function that attaches and links a vertex and a
-           fragment shader in a shader program */
+           fragment shader in a shader program  (+ GEOMETRY SHADER NOW!)*/
         void makeBasicShader(std::string const &vertexFilename,
-                             std::string const &fragmentFilename)
+                             std::string const &fragmentFilename, std::string const& geometryFilename)
         {
             attach(vertexFilename);
+			attach(geometryFilename);
             attach(fragmentFilename);
             link();
         }
