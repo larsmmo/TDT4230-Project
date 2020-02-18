@@ -34,5 +34,6 @@
 # Build directory
 /build/*
 !/build/.emptydirectory
+!/build/.openal32.dll
 
 /.vscode/*
