@@ -2,7 +2,7 @@
 
 in layout(location = 0) vec3 position;
 
-uniform layout(location = 1) mat4 model;
+uniform layout(location = 4) mat4 model;
 
 void main()
 {

@@ -4,6 +4,14 @@
 #include <vector>
 #include "sceneGraph.hpp"
 
+//// A few lines to help you if you've never used c++ structs
+struct LightSource {
+	SceneNode* lightNode;
+	glm::vec3 worldPos;
+	glm::vec3 color;
+};
+// LightSource lightSources[/*Put number of light sources you want here*/];
+
 void updateNodeTransformations(SceneNode* node, glm::mat4 transformationThusFar, glm::mat4 viewProjection);
 void initGame(GLFWwindow* window, CommandLineOptions options);
 void updateFrame(GLFWwindow* window);

@@ -4,6 +4,8 @@ in vec4 fragPos;
 
 uniform vec3 lightPos;
 
+//out vec4 color;
+
 void main()
 {
     float lightDistance = length(vec3(fragPos) - lightPos);

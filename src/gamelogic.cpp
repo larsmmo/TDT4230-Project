@@ -34,7 +34,6 @@ SceneNode* rootNode;
 SceneNode* boxNode;
 SceneNode* ballNode;
 SceneNode* padNode;
-SceneNode* lightBoxNode;
 
 double ballRadius = 3.0f;
 
@@ -90,20 +89,12 @@ void mouseCallback(GLFWwindow* window, double x, double y) {
     glfwSetCursorPos(window, windowWidth / 2, windowHeight / 2);
 }
 
-//// A few lines to help you if you've never used c++ structs
-struct LightSource {
-	SceneNode* lightNode;
-	glm::vec3 worldPos;
-	glm::vec3 color;
- };
-// LightSource lightSources[/*Put number of light sources you want here*/];
-
 unsigned int const  numLights = 3;
 LightSource lightSources[numLights];
 
-// Variables for shadow mapping
+// Variables for shadow mapping. One depthmap for each light.
 unsigned int depthMapFrameBuffer;
-unsigned int depthCubemap;
+unsigned int depthCubemap[numLights];
 
 void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     buffer = new sf::SoundBuffer();
@@ -127,21 +118,17 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     Mesh pad = cube(padDimensions, glm::vec2(30, 40), true);
     Mesh box = cube(boxDimensions, glm::vec2(90), true, true);
     Mesh sphere = generateSphere(1.0, 40, 40);
-	Mesh lightBox = cube(glm::vec3(5, 5, 5), glm::vec2(30), true);
 
     // Fill buffers
     unsigned int ballVAO = generateBuffer(sphere);
     unsigned int boxVAO  = generateBuffer(box);
     unsigned int padVAO  = generateBuffer(pad);
-	unsigned int lightBoxVAO = generateBuffer(lightBox);			// Just for testing
 
     // Construct scene
     rootNode = createSceneNode();
     boxNode  = createSceneNode();
     padNode  = createSceneNode();
     ballNode = createSceneNode();
-	lightBoxNode = createSceneNode();
-
 	
 	for (int light = 0; light < numLights; light++) {
 		lightSources[light].lightNode = createSceneNode();
@@ -149,7 +136,7 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 		lightSources[light].lightNode->nodeType = POINT_LIGHT;
 		lightSources[light].color[light] = 1.0;
 	}
-	
+
     rootNode->children.push_back(boxNode);
     rootNode->children.push_back(padNode);
     rootNode->children.push_back(ballNode);
@@ -158,15 +145,9 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 	boxNode->children.push_back(lightSources[1].lightNode);
 	padNode->children.push_back(lightSources[2].lightNode);
 
-	/*
-	lightSources[2].lightNode->children.push_back(lightBoxNode);			// Used to check light positions
-	lightBoxNode->vertexArrayObjectID = lightBoxVAO;
-	lightBoxNode->VAOIndexCount = lightBox.indices.size();
-	*/
-
-	lightSources[0].lightNode->position = glm::vec3(80.0, -20.0, -25.0);
-	lightSources[1].lightNode->position = glm::vec3(60.0, -20.0, -5.0);
-	lightSources[2].lightNode->position = glm::vec3(0.0, 15.0, 0.0);
+	lightSources[0].lightNode->position = glm::vec3(10.0, -20.0, -15.0);
+	lightSources[1].lightNode->position = glm::vec3(-10.0, -20.0, -15.0);
+	lightSources[2].lightNode->position = glm::vec3(0.0, 20.0, 5.0);
 	
     boxNode->vertexArrayObjectID = boxVAO;
     boxNode->VAOIndexCount = box.indices.size();
@@ -182,26 +163,33 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 
 	// Set up cubemap and frame buffer for shadow mapping
 	glGenFramebuffers(1, &depthMapFrameBuffer);
-	glGenTextures(1, &depthCubemap);
 
 	// Each of the 6 faces is a 2D depth-value texture
-	glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
-	for (unsigned int i = 0; i < 6; ++i) {
-		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, 1024, 1024, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	for (int light = 0; light < numLights; light++) {
+		glGenTextures(1, &depthCubemap[light]);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap[light]);
+		for (unsigned int i = 0; i < 6; ++i) {
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, 1024, 1024, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);		// create textures
+		}
+		// Set texture parameters
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+		// Attach cubemap as the depth attachment of the framebuffer
+		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFrameBuffer);
+		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap[light], 0);
+
+		// Tell OpenGL not to not render to color buffer (only need depth values)
+		glDrawBuffer(GL_NONE);
+		glReadBuffer(GL_NONE);
+
+		// Tell OpenGL which texture unit each sampler belongs to (I should learn how to put everything into one texture. For next time maybe..)
+		GLint location_sampler = shader->getUniformFromName(fmt::format("depthMap[{}]", light));
+		glUniform1i(location_sampler, light);
 	}
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-
-	// Attach cubemap as the depth attachment of the framebuffer
-	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFrameBuffer);
-	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap, 0);
-
-	// Tell OpenGL not to not render to color buffer (only need depth values)
-	glDrawBuffer(GL_NONE);
-	glReadBuffer(GL_NONE);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     getTimeDeltaSeconds();
@@ -220,6 +208,38 @@ std::vector<glm::mat4> lightSpaceTransform(glm::mat4 projection, LightSource lig
 	shadowTransforms.push_back(projection * glm::lookAt(light.worldPos, light.worldPos + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0)));
 	shadowTransforms.push_back(projection * glm::lookAt(light.worldPos, light.worldPos + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0)));
 	shadowTransforms.push_back(projection * glm::lookAt(light.worldPos, light.worldPos + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0)));
+
+	return shadowTransforms;
+}
+
+void renderNode(SceneNode* node) {
+	glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(node->MVPMatrix));
+	glUniformMatrix4fv(4, 1, GL_FALSE, glm::value_ptr(node->currentTransformationMatrix));
+	glm::mat3 normalMatrix = glm::mat3(transpose(inverse(node->currentTransformationMatrix)));
+	glUniformMatrix3fv(5, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+
+	switch (node->nodeType) {
+	case GEOMETRY:
+		if (node->vertexArrayObjectID != -1) {
+			glBindVertexArray(node->vertexArrayObjectID);
+			glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
+		}
+		break;
+	case POINT_LIGHT:
+	{
+		GLint location_position = shader->getUniformFromName(fmt::format("pointLights[{}].position", node->vertexArrayObjectID));		// Vertex array obj ID = light ID
+		glUniform3fv(location_position, 1, glm::value_ptr(lightSources[node->vertexArrayObjectID].worldPos));
+
+		GLint location_color = shader->getUniformFromName(fmt::format("pointLights[{}].color", node->vertexArrayObjectID));
+		glUniform3fv(location_color, 1, glm::value_ptr(lightSources[node->vertexArrayObjectID].color));
+	}
+	break;
+	case SPOT_LIGHT: break;
+	}
+
+	for (SceneNode* child : node->children) {
+		renderNode(child);
+	}
 }
 
 void updateFrame(GLFWwindow* window) {
@@ -268,7 +288,7 @@ void updateFrame(GLFWwindow* window) {
         }
 
         ballPosition.x = ballMinX + (1 - padPositionX) * (ballMaxX - ballMinX);
-        ballPosition.y = ballBottomY;
+        ballPosition.y = ballBottomY + 15;
         ballPosition.z = ballMinZ + (1 - padPositionZ) * ((ballMaxZ+cameraWallOffset) - ballMinZ);
     } else {
         totalElapsedTime += timeDelta;
@@ -406,25 +426,35 @@ void updateFrame(GLFWwindow* window) {
     };
 
 	// Adding shadows
-	// Render the scene from the light's perspective
+	// Render the scene from the light's perspective using shadow mapping with front-face culling to reduce peter-panning effect
+	glCullFace(GL_FRONT);
 	glm::mat4 shadowProjection = glm::perspective(glm::radians(90.0f), float(1024.0) / float(1024.0), 0.1f, 350.f);
-	std::vector<glm::mat4> shadowTransforms = lightSpaceTransform(shadowProjection, lightSources[1]);
-
-	// Render to depth cubemap
 	glViewport(0, 0, 1024, 1024);
-	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFrameBuffer);
-	glClear(GL_DEPTH_BUFFER_BIT);
 	depthShader->activate();
-	for (unsigned int i = 0; i < 6; ++i) {
-		GLint location_shadowMat = depthShader->getUniformFromName(fmt::format("shadowMatrices[{}]", i));
-		glUniformMatrix4fv(location_shadowMat, 1, false, glm::value_ptr(shadowTransforms[i]));
+
+	for (int light = 0; light < numLights; light++) {
+		std::vector<glm::mat4> shadowTransforms = lightSpaceTransform(shadowProjection, lightSources[light]);
+
+		// Render to depth cubemap
+		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFrameBuffer);
+		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap[light], 0);
+		glClear(GL_DEPTH_BUFFER_BIT);
+		for (unsigned int i = 0; i < 6; ++i) {
+			GLint location_shadowMat = depthShader->getUniformFromName(fmt::format("shadowMatrices[{}]", i));
+			glUniformMatrix4fv(location_shadowMat, 1, false, glm::value_ptr(shadowTransforms[i]));
+		}
+		GLint location_lightPos = glGetUniformLocation(depthShader->get(), "lightPos");
+		glUniform3fv(location_lightPos, 1, glm::value_ptr(lightSources[light].worldPos));
+
+		renderNode(rootNode);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glActiveTexture(GL_TEXTURE0 + light);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap[light]);
 	}
-		
-	simpleDepthShader.setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
-	simpleDepthShader.setFloat("far_plane", 350.0f);
-	simpleDepthShader.setVec3("lightPos", lightSources[1].worldPos);
-	renderScene(simpleDepthShader);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	// Scene is rendered again normally in the program.cpp loop
+	shader->activate();
+	glCullFace(GL_BACK);
 
     updateNodeTransformations(rootNode, glm::mat4(1.0f), VP);
 
@@ -449,44 +479,12 @@ void updateNodeTransformations(SceneNode* node, glm::mat4 transformationThusFar,
 			// Calculating the world coordinates of a light source by multiplying the transformation matrix by the origin of the world space
 			glm::vec4 origin = glm::vec4(0, 0, 0, 1.0);
 			lightSources[node->vertexArrayObjectID].worldPos = glm::vec3(node->currentTransformationMatrix * origin);
-			//printf("Light: %i, Position: (%f, %f, %f)\n", node->vertexArrayObjectID,
-			//	lightSources[node->vertexArrayObjectID].worldPos.x, lightSources[node->vertexArrayObjectID].worldPos.y, lightSources[node->vertexArrayObjectID].worldPos.z);
 			break;
         case SPOT_LIGHT: break;
     }
 
     for(SceneNode* child : node->children) {
         updateNodeTransformations(child, node->currentTransformationMatrix, viewProjection);
-    }
-}
-
-void renderNode(SceneNode* node) {
-    glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(node->MVPMatrix));
-	glUniformMatrix4fv(4, 1, GL_FALSE, glm::value_ptr(node->currentTransformationMatrix));
-	glm::mat3 normalMatrix = glm::mat3(transpose(inverse(node->currentTransformationMatrix)));
-	glUniformMatrix3fv(5, 1, GL_FALSE, glm::value_ptr(normalMatrix));
-
-    switch(node->nodeType) {
-        case GEOMETRY:
-            if(node->vertexArrayObjectID != -1) {
-                glBindVertexArray(node->vertexArrayObjectID);
-                glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
-            }
-            break;
-        case POINT_LIGHT:
-		{
-			GLint location_position = shader->getUniformFromName(fmt::format("pointLights[{}].position", node->vertexArrayObjectID));		// Vertex array obj ID = light ID
-			glUniform3fv(location_position, 1, glm::value_ptr(lightSources[node->vertexArrayObjectID].worldPos));
-
-			GLint location_color = shader->getUniformFromName(fmt::format("pointLights[{}].color", node->vertexArrayObjectID));
-			glUniform3fv(location_color, 1, glm::value_ptr(lightSources[node->vertexArrayObjectID].color));
-		}
-			break;
-        case SPOT_LIGHT: break;
-    }
-
-    for(SceneNode* child : node->children) {
-        renderNode(child);
     }
 }
 
