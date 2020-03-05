@@ -4,7 +4,6 @@ in GS_OUT {
 	vec3 normal;
 	vec2 textureCoordinates;
 	vec3 fragPos;
-	vec3 position;
 } fs_in;
 
 struct PointLight {    
@@ -18,6 +17,8 @@ uniform PointLight pointLights[MAX_LIGHTS];
 
 uniform samplerCube depthMap[MAX_LIGHTS];
 
+uniform sampler2D checkerTexture;
+
 uniform layout(location = 6) int numLights;
 
 uniform layout(location = 10) vec3 cameraPosition;
@@ -28,8 +29,8 @@ float ambientStrength = 0.2;
 float specularStrength = 1.0;
 
 float constant = 1.0;
-float linear = 0.028;
-float quadratic = 0.0020;
+float linear = 0.020;
+float quadratic = 0.0015;
 
 float rand(vec2 co) { return fract(sin(dot(co.xy, vec2(12.9898,78.233))) * 43758.5453); }
 float dither(vec2 uv) { return (rand(uv)*2.0-1.0) / 256.0; }
@@ -52,8 +53,8 @@ float calculateShadow(vec3 fragPos, vec3 lightPosition, int lightID)
 	float currentDepth = length(fragLightVec);
 
 	float shadow = 0.0;
-	float bias   = 0.1;
-	int samples  = 20;
+	float bias   = 0.01;
+	int samples  = 25;
 	float viewDistance = length(cameraPosition - fs_in.fragPos);
 	float diskRadius = (1.0 + (viewDistance / 350.0)) / 25.0;			// Sharper shadows when close to the viewer, and softer when far away
 	for(int i = 0; i < samples; ++i)
@@ -95,8 +96,10 @@ void main()
 		specular += specularStrength * spec * pointLights[i].color;
 	}
 
+	vec3 R = reflect(-viewDir, norm);
+
 	float dither = dither(fs_in.textureCoordinates);
 
-	vec3 combined = (ambient + diffuse) * vec3(0.99, 0.99, 0.99) + specular + dither;					// last vector = object color
+	vec3 combined = (ambient + diffuse) * vec3(texture(checkerTexture, fs_in.textureCoordinates)) + specular + dither;					// last vector = object color  (vec3(0.99, 0.99, 0.99))
 	color = vec4(combined, 1.0);
 }

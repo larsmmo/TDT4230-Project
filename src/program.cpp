@@ -24,6 +24,10 @@ void runProgram(GLFWwindow* window, CommandLineOptions options)
     // Configure miscellaneous OpenGL settings
     glEnable(GL_CULL_FACE);
 
+	// Enable transparency
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
     // Disable built-in dithering
     glDisable(GL_DITHER);
 

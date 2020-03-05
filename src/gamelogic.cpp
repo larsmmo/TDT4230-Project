@@ -17,6 +17,8 @@
 #include "sceneGraph.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/transform.hpp>
+#include "utilities/imageLoader.hpp"
+#include "utilities/glfont.h"
 
 enum KeyFrameAction {
     BOTTOM, TOP
@@ -34,6 +36,8 @@ SceneNode* rootNode;
 SceneNode* boxNode;
 SceneNode* ballNode;
 SceneNode* padNode;
+SceneNode* wallNode;
+SceneNode* textNode;
 
 double ballRadius = 3.0f;
 
@@ -41,10 +45,12 @@ double ballRadius = 3.0f;
 sf::SoundBuffer* buffer;
 Gloom::Shader* shader;
 Gloom::Shader* depthShader;
+Gloom::Shader* shader2D;
 sf::Sound* sound;
 
 const glm::vec3 boxDimensions(180, 90, 90);
 const glm::vec3 padDimensions(30, 3, 40);
+const glm::vec3 wallDimensions(80, 30, 10);
 
 glm::vec3 ballPosition(0, ballRadius + padDimensions.y, boxDimensions.z / 2);
 glm::vec3 ballDirection(1, 1, 0.2f);
@@ -96,6 +102,27 @@ LightSource lightSources[numLights];
 unsigned int depthMapFrameBuffer;
 unsigned int depthCubemap[numLights];
 
+// Checker texture data
+GLubyte imageData[64][64][3];
+unsigned int checkerTexture;
+
+// Charmap.png texture for fonts
+PNGImage charMap;
+
+// Load the imageData array with checkerboad pattern
+void loadTextureImageData() {
+	int value;
+	for (int row = 0; row < 64; row++) {
+		for (int col = 0; col < 64; col++) {
+			// Each cell is 8x8, value is 0 or 255 (black or white)
+			value = (((row & 0x8) == 0) ^ ((col & 0x8) == 0)) * 255;
+			imageData[row][col][0] = (GLubyte)value;
+			imageData[row][col][1] = (GLubyte)value;
+			imageData[row][col][2] = (GLubyte)value;
+		}
+	}
+}
+
 void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     buffer = new sf::SoundBuffer();
     if (!buffer->loadFromFile("../res/Hall of the Mountain King.ogg")) {
@@ -106,29 +133,49 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
     glfwSetCursorPosCallback(window, mouseCallback);
 
+	// Create simple shader program
     shader = new Gloom::Shader();
-    shader->makeBasicShader("../res/shaders/simple.vert", "../res/shaders/simple.frag", "../res/shaders/simple.geom");
+	std::vector<std::string> basicShaderFiles{"../res/shaders/simple.vert", "../res/shaders/simple.frag", "../res/shaders/simple.geom"};
+	shader->makeBasicShader(basicShaderFiles);
     shader->activate();
 
 	// Create another shader for shadow mapping
 	depthShader = new Gloom::Shader();
-	depthShader->makeBasicShader("../res/shaders/depth.vert", "../res/shaders/depth.frag", "../res/shaders/depth.geom");
+	std::vector<std::string> depthShaderFiles{"../res/shaders/depth.vert", "../res/shaders/depth.frag", "../res/shaders/depth.geom"};
+	depthShader->makeBasicShader(depthShaderFiles);
+
+	// Create ANOTHER shader pair for 2D geometry
+	shader2D = new Gloom::Shader();
+	std::vector<std::string> shader2DFiles{ "../res/shaders/shader2D.vert", "../res/shaders/shader2D.frag" };
+	shader2D->makeBasicShader(shader2DFiles);
 
     // Create meshes
-    Mesh pad = cube(padDimensions, glm::vec2(30, 40), true);
+    Mesh pad = cube(padDimensions, glm::vec2(80), true);
     Mesh box = cube(boxDimensions, glm::vec2(90), true, true);
     Mesh sphere = generateSphere(1.0, 40, 40);
+	Mesh wall = cube(wallDimensions, glm::vec2(80), true);
 
     // Fill buffers
     unsigned int ballVAO = generateBuffer(sphere);
     unsigned int boxVAO  = generateBuffer(box);
     unsigned int padVAO  = generateBuffer(pad);
+	unsigned int wallVAO = generateBuffer(wall);
+
+	// Load texture data and fill buffer
+	charMap = loadPNGFile("../res/textures/charmap.png");
+	Mesh textBuffer = generateTextGeometryBuffer("This is a test", (39.0 / 29.0), 500.0);
+	unsigned int textVAO = generateBuffer(textBuffer);
 
     // Construct scene
     rootNode = createSceneNode();
     boxNode  = createSceneNode();
     padNode  = createSceneNode();
     ballNode = createSceneNode();
+	wallNode = createSceneNode();
+	textNode = createSceneNode();
+
+	textNode->nodeType = GEOMETRY_2D;
+	textNode->position = glm::vec3(0.0, 0.0, 0.0);
 	
 	for (int light = 0; light < numLights; light++) {
 		lightSources[light].lightNode = createSceneNode();
@@ -137,10 +184,11 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 		lightSources[light].color[light] = 1.0;
 	}
 
-    rootNode->children.push_back(boxNode);
-    rootNode->children.push_back(padNode);
-    rootNode->children.push_back(ballNode);
-	
+	rootNode->children.push_back(boxNode);
+	rootNode->children.push_back(padNode);
+	rootNode->children.push_back(ballNode);
+	rootNode->children.push_back(textNode);
+
 	boxNode->children.push_back(lightSources[0].lightNode);
 	boxNode->children.push_back(lightSources[1].lightNode);
 	padNode->children.push_back(lightSources[2].lightNode);
@@ -148,6 +196,11 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 	lightSources[0].lightNode->position = glm::vec3(10.0, -20.0, -15.0);
 	lightSources[1].lightNode->position = glm::vec3(-10.0, -20.0, -15.0);
 	lightSources[2].lightNode->position = glm::vec3(0.0, 20.0, 5.0);
+
+	wallNode->position = glm::vec3(-20.0, 15.0, -10.0);
+
+	wallNode->vertexArrayObjectID = wallVAO;
+	wallNode->VAOIndexCount = wall.indices.size();
 	
     boxNode->vertexArrayObjectID = boxVAO;
     boxNode->VAOIndexCount = box.indices.size();
@@ -158,12 +211,15 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     ballNode->vertexArrayObjectID = ballVAO;
     ballNode->VAOIndexCount = sphere.indices.size();
 
+	textNode->vertexArrayObjectID = textVAO;
+	textNode->VAOIndexCount = textBuffer.indices.size();
+
 	// Send number of lights to shader
 	glUniform1i(6, numLights);
 
 	// Set up cubemap and frame buffer for shadow mapping
 	glGenFramebuffers(1, &depthMapFrameBuffer);
-
+	
 	// Each of the 6 faces is a 2D depth-value texture
 	for (int light = 0; light < numLights; light++) {
 		glGenTextures(1, &depthCubemap[light]);
@@ -190,7 +246,36 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 		GLint location_sampler = shader->getUniformFromName(fmt::format("depthMap[{}]", light));
 		glUniform1i(location_sampler, light);
 	}
+	
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// Create checkerboard texture
+	glGenTextures(1, &checkerTexture);
+	glBindTexture(GL_TEXTURE_2D, checkerTexture);
+
+	loadTextureImageData();   // Load pattern into image data array
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 64, 64, 0, GL_RGB,
+		GL_UNSIGNED_BYTE, imageData);  // Create texture from image data
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	glEnable(GL_TEXTURE_2D);  // Enable 2D texture 
+
+	GLint location_checker = shader->getUniformFromName("checkerTexture");
+	glUniform1i(location_checker, 3);
+
+	glActiveTexture(GL_TEXTURE0 + 3);
+	glBindTexture(GL_TEXTURE_2D, checkerTexture);
+
+	// Orthographic projection matrix for 2d geometry
+
+	glm::mat4 orthoProjection = glm::ortho(0.0f, float(windowWidth), 0.0f, float(windowHeight));
+
+	shader2D->activate();
+	glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(orthoProjection));
+	shader->activate();
 
     getTimeDeltaSeconds();
 
@@ -239,6 +324,22 @@ void renderNode(SceneNode* node) {
 
 	for (SceneNode* child : node->children) {
 		renderNode(child);
+	}
+}
+
+/* Hacky way of rendering only 2D geometry */
+void render2DNode(SceneNode* node)
+{
+	if (node->nodeType == GEOMETRY_2D)
+	{
+		if (node->vertexArrayObjectID != -1) {
+			glBindVertexArray(node->vertexArrayObjectID);
+			glBindTexture(GL_TEXTURE_2D, node->textureID);
+			glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
+		}
+	}
+	for (SceneNode* child : node->children) {
+		render2DNode(child);
 	}
 }
 
@@ -413,9 +514,9 @@ void updateFrame(GLFWwindow* window) {
     glm::mat4 VP = projection * cameraTransform;
 
     // Move and rotate various SceneNodes
-    boxNode->position = { 0, -10, -80 };
+    boxNode->position = { 0, -10, -80};
 
-    ballNode->position = ballPosition;
+	ballNode->position = ballPosition;
     ballNode->scale = glm::vec3(ballRadius);
     ballNode->rotation = { 0, totalElapsedTime*2, 0 };
 
@@ -424,7 +525,7 @@ void updateFrame(GLFWwindow* window) {
         boxNode->position.y - (boxDimensions.y/2) + (padDimensions.y/2), 
         boxNode->position.z - (boxDimensions.z/2) + (padDimensions.z/2) + (1 - padPositionZ) * (boxDimensions.z - padDimensions.z)
     };
-
+	
 	// Adding shadows
 	// Render the scene from the light's perspective using shadow mapping with front-face culling to reduce peter-panning effect
 	glCullFace(GL_FRONT);
@@ -435,10 +536,7 @@ void updateFrame(GLFWwindow* window) {
 	for (int light = 0; light < numLights; light++) {
 		std::vector<glm::mat4> shadowTransforms = lightSpaceTransform(shadowProjection, lightSources[light]);
 
-		// Render to depth cubemap
-		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFrameBuffer);
-		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap[light], 0);
-		glClear(GL_DEPTH_BUFFER_BIT);
+		// Send variables to the depth shader
 		for (unsigned int i = 0; i < 6; ++i) {
 			GLint location_shadowMat = depthShader->getUniformFromName(fmt::format("shadowMatrices[{}]", i));
 			glUniformMatrix4fv(location_shadowMat, 1, false, glm::value_ptr(shadowTransforms[i]));
@@ -446,14 +544,18 @@ void updateFrame(GLFWwindow* window) {
 		GLint location_lightPos = glGetUniformLocation(depthShader->get(), "lightPos");
 		glUniform3fv(location_lightPos, 1, glm::value_ptr(lightSources[light].worldPos));
 
+		// Render to depth cubemap
+		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFrameBuffer);
+		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap[light], 0);
+		glClear(GL_DEPTH_BUFFER_BIT);
 		renderNode(rootNode);
 
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glActiveTexture(GL_TEXTURE0 + light);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap[light]);
 	}
 	// Scene is rendered again normally in the program.cpp loop
 	shader->activate();
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glCullFace(GL_BACK);
 
     updateNodeTransformations(rootNode, glm::mat4(1.0f), VP);
@@ -492,6 +594,11 @@ void renderFrame(GLFWwindow* window) {
     int windowWidth, windowHeight;
     glfwGetWindowSize(window, &windowWidth, &windowHeight);
     glViewport(0, 0, windowWidth, windowHeight);
-
+	
+	// Render 3D geometry
     renderNode(rootNode);
+
+	// Render 2D geometry
+	shader2D->activate();
+	render2DNode(rootNode);
 }
