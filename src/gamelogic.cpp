@@ -19,6 +19,7 @@
 #include <glm/gtx/transform.hpp>
 #include "utilities/imageLoader.hpp"
 #include "utilities/glfont.h"
+#include "texture.hpp"
 
 enum KeyFrameAction {
     BOTTOM, TOP
@@ -106,9 +107,6 @@ unsigned int depthCubemap[numLights];
 GLubyte imageData[64][64][3];
 unsigned int checkerTexture;
 
-// Charmap.png texture for fonts
-PNGImage charMap;
-
 // Load the imageData array with checkerboad pattern
 void loadTextureImageData() {
 	int value;
@@ -161,10 +159,23 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     unsigned int padVAO  = generateBuffer(pad);
 	unsigned int wallVAO = generateBuffer(wall);
 
-	// Load texture data and fill buffer
-	charMap = loadPNGFile("../res/textures/charmap.png");
-	Mesh textBuffer = generateTextGeometryBuffer("This is a test", (39.0 / 29.0), 500.0);
+	// Add tangent and bitangent buffer to box
+	addTangentBuffers(boxVAO, box);
+
+	// Create, load texture data and fill buffer
+	// Font
+	PNGImage charMap = loadPNGFile("../res/textures/charmap.png");
+	Mesh textBuffer = generateTextGeometryBuffer("You just lost The game", (39.0 / 29.0), 900.0);
 	unsigned int textVAO = generateBuffer(textBuffer);
+	Texture* textTexture = new Texture(&charMap);
+
+	// Diffuse texture
+	PNGImage brickImage = loadPNGFile("../res/textures/Brick03_col.png");
+	Texture* brickTexture = new Texture(&brickImage);
+
+	// Normal map
+	PNGImage normalMapImage = loadPNGFile("../res/textures/Brick03_nrm.png");
+	Texture* brickNormalTexture = new Texture(&normalMapImage);
 
     // Construct scene
     rootNode = createSceneNode();
@@ -174,14 +185,22 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 	wallNode = createSceneNode();
 	textNode = createSceneNode();
 
+	// 2D geometry nodes
 	textNode->nodeType = GEOMETRY_2D;
+	textNode->textureID = textTexture->getTextureID();
 	textNode->position = glm::vec3(0.0, 0.0, 0.0);
+
+	// 3D Normal mapped geometry nodes
+	boxNode->nodeType = GEOMETRY_NORMAL_MAPPED;
+	boxNode->textureID = brickTexture->getTextureID();
+	boxNode->normalMapTextureID = brickNormalTexture->getTextureID();
 	
 	for (int light = 0; light < numLights; light++) {
 		lightSources[light].lightNode = createSceneNode();
 		lightSources[light].lightNode->vertexArrayObjectID = light;
 		lightSources[light].lightNode->nodeType = POINT_LIGHT;
 		lightSources[light].color[light] = 1.0;
+		//lightSources[light].color = glm::vec3(1.0, 1.0, 1.0);
 	}
 
 	rootNode->children.push_back(boxNode);
@@ -193,7 +212,7 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 	boxNode->children.push_back(lightSources[1].lightNode);
 	padNode->children.push_back(lightSources[2].lightNode);
 
-	lightSources[0].lightNode->position = glm::vec3(10.0, -20.0, -15.0);
+	lightSources[0].lightNode->position = glm::vec3(30.0, -20.0, -25.0);
 	lightSources[1].lightNode->position = glm::vec3(-10.0, -20.0, -15.0);
 	lightSources[2].lightNode->position = glm::vec3(0.0, 20.0, 5.0);
 
@@ -248,14 +267,15 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 	}
 	
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
+	
+	/*
 	// Create checkerboard texture
 	glGenTextures(1, &checkerTexture);
 	glBindTexture(GL_TEXTURE_2D, checkerTexture);
 
-	loadTextureImageData();   // Load pattern into image data array
+	loadTextureImageData();   // Load pattern into memory (imageData)
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 64, 64, 0, GL_RGB,
-		GL_UNSIGNED_BYTE, imageData);  // Create texture from image data
+		GL_UNSIGNED_BYTE, imageData); 
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -269,8 +289,9 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 	glActiveTexture(GL_TEXTURE0 + 3);
 	glBindTexture(GL_TEXTURE_2D, checkerTexture);
 
-	// Orthographic projection matrix for 2d geometry
+	*/
 
+	// Orthographic projection matrix for 2d geometry
 	glm::mat4 orthoProjection = glm::ortho(0.0f, float(windowWidth), 0.0f, float(windowHeight));
 
 	shader2D->activate();
@@ -307,7 +328,22 @@ void renderNode(SceneNode* node) {
 	case GEOMETRY:
 		if (node->vertexArrayObjectID != -1) {
 			glBindVertexArray(node->vertexArrayObjectID);
+			glActiveTexture(GL_TEXTURE0 + 11);
+			glBindTexture(GL_TEXTURE_2D, node->textureID);
 			glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
+		}
+		break;
+	case GEOMETRY_NORMAL_MAPPED:
+		if (node->vertexArrayObjectID != -1) {
+			// Set conditional flag and bind texture
+			glUniform1i(11, 1);
+			glBindVertexArray(node->vertexArrayObjectID);
+			glActiveTexture(GL_TEXTURE0 + 12);
+			glBindTexture(GL_TEXTURE_2D, node->normalMapTextureID);
+			glActiveTexture(GL_TEXTURE0 + 11);
+			glBindTexture(GL_TEXTURE_2D, node->textureID);
+			glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
+			glUniform1i(11, 0);
 		}
 		break;
 	case POINT_LIGHT:
@@ -334,6 +370,7 @@ void render2DNode(SceneNode* node)
 	{
 		if (node->vertexArrayObjectID != -1) {
 			glBindVertexArray(node->vertexArrayObjectID);
+			glActiveTexture(GL_TEXTURE0 + 10);
 			glBindTexture(GL_TEXTURE_2D, node->textureID);
 			glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
 		}

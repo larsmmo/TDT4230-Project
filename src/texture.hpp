@@ -17,9 +17,9 @@ class Texture
 {
 private:
 	unsigned int textureID;
-	Texture(PNGImage* image);
 public:
-	unsigned int getTextureID(PNGImage* image);
+	Texture(PNGImage* image);
+	unsigned int getTextureID();
 };
 
 #endif

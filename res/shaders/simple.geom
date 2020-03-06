@@ -9,12 +9,14 @@ in VS_OUT {
 	vec3 normal;
 	vec2 textureCoordinates;
 	vec3 fragPos;
+	mat3 TBN;
 } gs_in[];
 
 out GS_OUT {
 	vec3 normal;
 	vec2 textureCoordinates;
 	vec3 fragPos;
+	mat3 TBN;
 } gs_out;
 
 void main()
@@ -23,6 +25,7 @@ void main()
 		gs_out.normal = normalize(gs_in[i].normal);
 		gs_out.textureCoordinates = gs_in[i].textureCoordinates;
 		gs_out.fragPos = gs_in[i].fragPos;
+		gs_out.TBN = gs_in[i].TBN;
 		gl_Position = gl_in[i].gl_Position;
 		EmitVertex();
 	}

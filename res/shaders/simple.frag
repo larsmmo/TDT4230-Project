@@ -4,6 +4,7 @@ in GS_OUT {
 	vec3 normal;
 	vec2 textureCoordinates;
 	vec3 fragPos;
+	mat3 TBN;
 } fs_in;
 
 struct PointLight {    
@@ -17,15 +18,19 @@ uniform PointLight pointLights[MAX_LIGHTS];
 
 uniform samplerCube depthMap[MAX_LIGHTS];
 
-uniform sampler2D checkerTexture;
+layout(binding = 11) uniform sampler2D nodeTexture;
+
+layout(binding = 12) uniform sampler2D normalTexture;
 
 uniform layout(location = 6) int numLights;
 
 uniform layout(location = 10) vec3 cameraPosition;
 
+uniform layout(location = 11) bool normal_map;
+
 out vec4 color;
 
-float ambientStrength = 0.2;
+float ambientStrength = 0.25;
 float specularStrength = 1.0;
 
 float constant = 1.0;
@@ -71,7 +76,12 @@ float calculateShadow(vec3 fragPos, vec3 lightPosition, int lightID)
 
 void main()
 {
-	vec3 norm = normalize(fs_in.normal);						
+	vec3 norm = normalize(fs_in.normal);	
+	
+	if (normal_map)
+	{
+		norm = fs_in.TBN * (vec3(texture(normalTexture, fs_in.textureCoordinates)) * 2 - 1);
+	}
 
 	vec3 viewDir = normalize(cameraPosition - fs_in.fragPos);
 
@@ -89,7 +99,7 @@ void main()
 		float shadow = calculateShadow(fs_in.fragPos, pointLights[i].position, i);
 
 		float diff = max(dot(norm,lightDir), 0.0) * lightAttenuation * (1 - shadow);
-		float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32) * lightAttenuation * (1 - shadow); 
+		float spec = pow(max(dot(viewDir, reflectDir), 0.0), 42) * lightAttenuation * (1 - shadow); 
 
 		ambient += ambientStrength * pointLights[i].color * lightAttenuation;
 		diffuse += diff * pointLights[i].color;
@@ -100,6 +110,7 @@ void main()
 
 	float dither = dither(fs_in.textureCoordinates);
 
-	vec3 combined = (ambient + diffuse) * vec3(texture(checkerTexture, fs_in.textureCoordinates)) + specular + dither;					// last vector = object color  (vec3(0.99, 0.99, 0.99))
+	vec3 combined = (ambient + diffuse) * vec3(texture(nodeTexture, fs_in.textureCoordinates)) + specular + dither;					// last vector = object color  (vec3(0.99, 0.99, 0.99))
+	//vec3 combined = fs_in.TBN * (vec3(texture(normalTexture, fs_in.textureCoordinates)) * 2 - 1);
 	color = vec4(combined, 1.0);
 }
