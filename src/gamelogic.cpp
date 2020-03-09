@@ -13,6 +13,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <fmt/format.h>
+#include <cmath>		// sin
+#include <algorithm>    // std::max
 #include "gamelogic.h"
 #include "sceneGraph.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
@@ -76,6 +78,8 @@ double gameElapsedTime = debug_startTime;
 double mouseSensitivity = 1.0;
 double lastMouseX = windowWidth / 2;
 double lastMouseY = windowHeight / 2;
+
+std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
 void mouseCallback(GLFWwindow* window, double x, double y) {
     int windowWidth, windowHeight;
@@ -380,11 +384,18 @@ void render2DNode(SceneNode* node)
 	}
 }
 
+float test = 0.0;
 void updateFrame(GLFWwindow* window) {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     double timeDelta = getTimeDeltaSeconds();
 
+	// Send elapsed time to shader for some fun experiments (NOT RELEVANT FOR ASSIGNMENT)
+	float elapsedTime = (std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - startTime).count()) / 1000000.0;
+	GLint location_time = shader->getUniformFromName("elapsedTime");
+	glUniform1f(location_time, elapsedTime);
+	printf("Elapsed time: %f \n", elapsedTime);
+	
     const float ballBottomY = boxNode->position.y - (boxDimensions.y/2) + ballRadius + padDimensions.y;
     const float ballTopY    = boxNode->position.y + (boxDimensions.y/2) - ballRadius;
     const float BallVerticalTravelDistance = ballTopY - ballBottomY;
@@ -566,7 +577,7 @@ void updateFrame(GLFWwindow* window) {
 	// Adding shadows
 	// Render the scene from the light's perspective using shadow mapping with front-face culling to reduce peter-panning effect
 	glCullFace(GL_FRONT);
-	glm::mat4 shadowProjection = glm::perspective(glm::radians(90.0f), float(1024.0) / float(1024.0), 0.1f, 350.f);
+	glm::mat4 shadowProjection = glm::perspective(glm::radians(90.0f), float(1024.0) / float(1024.0), 0.1f, 350.f);	// 1024x1024 shadow map resolution
 	glViewport(0, 0, 1024, 1024);
 	depthShader->activate();
 
@@ -585,7 +596,9 @@ void updateFrame(GLFWwindow* window) {
 		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFrameBuffer);
 		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap[light], 0);
 		glClear(GL_DEPTH_BUFFER_BIT);
-		renderNode(rootNode);
+		// Only render shadows for dynamic objects now :)  TODO: Add static light maps, and maybe add new "rootNode" with a copy of the dynamic objects, and render that instead
+		renderNode(padNode);
+		renderNode(ballNode);
 
 		glActiveTexture(GL_TEXTURE0 + light);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap[light]);
@@ -596,7 +609,6 @@ void updateFrame(GLFWwindow* window) {
 	glCullFace(GL_BACK);
 
     updateNodeTransformations(rootNode, glm::mat4(1.0f), VP);
-
 }
 
 void updateNodeTransformations(SceneNode* node, glm::mat4 transformationThusFar, glm::mat4 viewProjection) {
@@ -638,4 +650,5 @@ void renderFrame(GLFWwindow* window) {
 	// Render 2D geometry
 	shader2D->activate();
 	render2DNode(rootNode);
+	shader->activate();
 }

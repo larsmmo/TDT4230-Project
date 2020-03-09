@@ -30,7 +30,7 @@ uniform layout(location = 11) bool normal_map;
 
 out vec4 color;
 
-float ambientStrength = 0.25;
+float ambientStrength = 0.35;
 float specularStrength = 1.0;
 
 float constant = 1.0;
