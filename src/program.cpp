@@ -31,9 +31,6 @@ void runProgram(GLFWwindow* window, CommandLineOptions options)
 	// Enable wireframe mode
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-    // Disable built-in dithering
-    glDisable(GL_DITHER);
-
     // Set default colour after clearing the colour buffer
     glClearColor(0.3f, 0.5f, 0.8f, 1.0f);
 
@@ -45,10 +42,8 @@ void runProgram(GLFWwindow* window, CommandLineOptions options)
 	    // Clear colour and depth buffers
 	    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-
         updateFrame(window);
         renderFrame(window);
-
 
         // Handle other events
         glfwPollEvents();

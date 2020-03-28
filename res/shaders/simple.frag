@@ -1,116 +1,130 @@
 #version 430 core
 
-in GS_OUT {
-	vec3 normal;
-	vec2 textureCoordinates;
-	vec3 fragPos;
-	mat3 TBN;
-} fs_in;
-
 struct PointLight {    
     vec3 position;
     vec3 color;
 };
 
+/*
 #define MAX_LIGHTS 3
 
 uniform PointLight pointLights[MAX_LIGHTS];
 
-uniform samplerCube depthMap[MAX_LIGHTS];
-
-layout(binding = 11) uniform sampler2D nodeTexture;
-
-layout(binding = 12) uniform sampler2D normalTexture;
-
 uniform layout(location = 6) int numLights;
 
-uniform layout(location = 10) vec3 cameraPosition;
+*/
 
-uniform layout(location = 11) bool normal_map;
+uniform layout(location = 0) vec2 imageResolution;
+
+uniform layout(location = 1) float time;
+
+uniform layout(location = 2) vec3 cameraPosition;
+
+uniform layout(location = 3) mat4 viewMatrix;
 
 out vec4 color;
 
-float ambientStrength = 0.35;
-float specularStrength = 1.0;
+float FOV = 1.0;
 
-float constant = 1.0;
-float linear = 0.020;
-float quadratic = 0.0015;
-
-float rand(vec2 co) { return fract(sin(dot(co.xy, vec2(12.9898,78.233))) * 43758.5453); }
-float dither(vec2 uv) { return (rand(uv)*2.0-1.0) / 256.0; }
-
-// Perpendicular offset directions for use in sampling when smoothing out jagged shadows
-vec3 sampleOffsetDirections[20] = vec3[]
-(
-   vec3( 1,  1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1,  1,  1), 
-   vec3( 1,  1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1,  1, -1),
-   vec3( 1,  1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1,  1,  0),
-   vec3( 1,  0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1,  0, -1),
-   vec3( 0,  1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0,  1, -1)
-);
-
-// PCF algorithm for softer shadows. Uses average of multiple samples around fragment position to smooth out jagged edges. Uses the offset directions
-// defined above to sample in directions perpendicular to the sample direction vector
-float calculateShadow(vec3 fragPos, vec3 lightPosition, int lightID)
+//Soft max function (continuous)
+float sMax(float a, float b, float k)
 {
-	vec3 fragLightVec = fragPos - lightPosition;
-	float currentDepth = length(fragLightVec);
+    float h = max(k - abs(a - b), 0.0);
+    return max(a, b) + h*h * 0.25 / k;
+}
+/*============================================================*/
+// Signed distance functions (SDF)
 
-	float shadow = 0.0;
-	float bias   = 0.01;
-	int samples  = 25;
-	float viewDistance = length(cameraPosition - fs_in.fragPos);
-	float diskRadius = (1.0 + (viewDistance / 350.0)) / 25.0;			// Sharper shadows when close to the viewer, and softer when far away
-	for(int i = 0; i < samples; ++i)
+float sphereSDF(vec3 p, float radius)
+{
+    return length(p) - radius;
+}
+
+float boxSDF(vec3 p, vec3 size ) {
+     vec3 d = abs(p) - size;
+     return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+}
+/*============================================================*/
+
+float mapWorld(in vec3 point)
+{
+    float sphere0 = boxSDF(point,  vec3(2.0));
+
+    return sphere0;
+}
+
+/* Computes the normal by calculating the gradient of the distance field at given point */
+vec3 calculateNormal(in vec3 point)
+{
+    const vec3 perturbation = vec3(0.001, 0.0, 0.0);
+
+    float gradX = mapWorld(point + perturbation.xyy) - mapWorld(point - perturbation.xyy);
+    float gradY = mapWorld(point + perturbation.yxy) - mapWorld(point - perturbation.yxy);
+    float gradZ = mapWorld(point + perturbation.yyx) - mapWorld(point - perturbation.yyx);
+
+    vec3 normal = vec3(gradX, gradY, gradZ);
+
+    return normalize(normal);
+}
+
+/*============================================================*/
+
+vec3 rayMarch(in vec3 origin, in vec3 dir)
+{
+	const int N_STEPS = 42;
+	const float MIN_HIT_DIST = 0.001;
+	const float MAX_RAY_DIST = 1000.0;
+	float distTraveled = 0.0;
+
+	for (int i = 0; i < N_STEPS; i++)
 	{
-		float closestDepth = texture(depthMap[lightID], fragLightVec + sampleOffsetDirections[i] * diskRadius).r;
-		closestDepth *= 350.0;			// from [0,1] to original value (350.0 = far plane of view frustrum from light POV)
+		// Current position along ray from the origin
+        vec3 currentPos = origin + distTraveled * dir;
 
-		if(currentDepth - bias > closestDepth)
-			shadow += 1.0;
+        // Find distance from current position to closest point on a sphere with radius = 1 from the origin
+        float toClosestDist = mapWorld(currentPos);
+
+        if (toClosestDist < MIN_HIT_DIST)	// Ray hit something
+        {
+			vec3 normal = calculateNormal(currentPos);
+
+			vec3 lightPos = vec3(-2.0, -3.0, 1.0);
+			vec3 lightDir = normalize(currentPos - lightPos);
+
+			float diff = max(0.0, dot(normal, lightDir));
+
+            return vec3(1.0, 0.0, 0.0) * diff ;
+        }
+
+        if (toClosestDist > MAX_RAY_DIST)	// Ray did not hit anything
+        {
+            break;
+        }
+
+		// Add to total distance traveled along ray
+        distTraveled += toClosestDist;
 	}
-	shadow /= float(samples); 
-    return shadow;
-}  
+
+	//Nothing was hit. Returning background color
+    return vec3(0.0);
+
+}
 
 void main()
 {
-	vec3 norm = normalize(fs_in.normal);	
-	
-	if (normal_map)
-	{
-		norm = fs_in.TBN * (vec3(texture(normalTexture, fs_in.textureCoordinates)) * 2 - 1);
-	}
+	// Generating a ray from the camera (origin) through every pixel
 
-	vec3 viewDir = normalize(cameraPosition - fs_in.fragPos);
+	// Move center to (0,0)
+	vec2 fragPos = (gl_FragCoord.xy/ imageResolution.xy) * 2.0 - 1.0;
+	// Correct for image aspect ratio
+	fragPos.x *= imageResolution.x / imageResolution.y;
 
-	vec3 ambient;
-	vec3 diffuse;
-	vec3 specular;
+	mat4 rot = mat4(cos(time),		0,		sin(time),		0,
+			 				 0,		1.0,			 0,		0,
+					-sin(time),	0,		cos(time),		0,
+							 0, 	0,				 0,		1);
 
-	for (int i = 0; i < numLights; i++){
-		vec3 lightDir = normalize(pointLights[i].position - fs_in.fragPos);									// Is it better to declare the variables outside of loop to avoid construction and destruction? (better performance?)
-		vec3 reflectDir = reflect(-lightDir, norm);
+	vec3 rayDir = vec3(viewMatrix * vec4(vec3(fragPos, FOV), 1.0));
 
-		float lightDistance = length(pointLights[i].position - fs_in.fragPos);
-		float lightAttenuation = 1.0 / (constant + linear * lightDistance + quadratic * (lightDistance * lightDistance));
-
-		float shadow = calculateShadow(fs_in.fragPos, pointLights[i].position, i);
-
-		float diff = max(dot(norm,lightDir), 0.0) * lightAttenuation * (1 - shadow);
-		float spec = pow(max(dot(viewDir, reflectDir), 0.0), 42) * lightAttenuation * (1 - shadow); 
-
-		ambient += ambientStrength * pointLights[i].color * lightAttenuation;
-		diffuse += diff * pointLights[i].color;
-		specular += specularStrength * spec * pointLights[i].color;
-	}
-
-	vec3 R = reflect(-viewDir, norm);
-
-	float dither = dither(fs_in.textureCoordinates);
-
-	vec3 combined = (ambient + diffuse) * vec3(texture(nodeTexture, fs_in.textureCoordinates)) + specular + dither;					// last vector = object color  (vec3(0.99, 0.99, 0.99))
-	//vec3 combined = fs_in.TBN * (vec3(texture(normalTexture, fs_in.textureCoordinates)) * 2 - 1);
-	color = vec4(combined, 1.0);
+	color = vec4(rayMarch(cameraPosition, rayDir), 1.0);
 }

@@ -29,6 +29,12 @@ namespace Gloom
 
         // Public member functions
 
+		/* Getter for camera position */
+		glm::vec3 getPosition() { return cPosition; }
+
+		/* Getter for camera rotation */
+		glm::mat4 getRotation() { return glm::mat4_cast(cQuaternion); }
+
         /* Getter for the view matrix */
         glm::mat4 getViewMatrix() { return matView; }
 

@@ -17,6 +17,7 @@
 #include <algorithm>    // std::max
 #include "gamelogic.h"
 #include "sceneGraph.hpp"
+#include "utilities/camera.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/transform.hpp>
 #include "utilities/imageLoader.hpp"
@@ -35,15 +36,6 @@ double padPositionZ = 0;
 unsigned int currentKeyFrame = 0;
 unsigned int previousKeyFrame = 0;
 
-SceneNode* rootNode;
-SceneNode* boxNode;
-SceneNode* ballNode;
-SceneNode* padNode;
-SceneNode* wallNode;
-SceneNode* textNode;
-
-double ballRadius = 3.0f;
-
 // These are heap allocated, because they should not be initialised at the start of the program
 sf::SoundBuffer* buffer;
 Gloom::Shader* shader;
@@ -51,14 +43,9 @@ Gloom::Shader* depthShader;
 Gloom::Shader* shader2D;
 sf::Sound* sound;
 
-const glm::vec3 boxDimensions(180, 90, 90);
-const glm::vec3 padDimensions(30, 3, 40);
-const glm::vec3 wallDimensions(80, 30, 10);
-
-glm::vec3 ballPosition(0, ballRadius + padDimensions.y, boxDimensions.z / 2);
-glm::vec3 ballDirection(1, 1, 0.2f);
-
 CommandLineOptions options;
+
+Gloom::Camera camera(glm::vec3(0.0f, 0.0f, -5.0f));
 
 bool hasStarted = false;
 bool hasLost = false;
@@ -81,49 +68,23 @@ double lastMouseY = windowHeight / 2;
 
 std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
-void mouseCallback(GLFWwindow* window, double x, double y) {
-    int windowWidth, windowHeight;
-    glfwGetWindowSize(window, &windowWidth, &windowHeight);
-    glViewport(0, 0, windowWidth, windowHeight);
-
-    double deltaX = x - lastMouseX;
-    double deltaY = y - lastMouseY;
-
-    padPositionX -= mouseSensitivity * deltaX / windowWidth;
-    padPositionZ -= mouseSensitivity * deltaY / windowHeight;
-
-    if (padPositionX > 1) padPositionX = 1;
-    if (padPositionX < 0) padPositionX = 0;
-    if (padPositionZ > 1) padPositionZ = 1;
-    if (padPositionZ < 0) padPositionZ = 0;
-
-    glfwSetCursorPos(window, windowWidth / 2, windowHeight / 2);
+void mouseCallback(GLFWwindow* window, double x, double y)
+{
+	camera.handleCursorPosInput(x, y);
 }
 
-unsigned int const  numLights = 3;
+void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+{
+	camera.handleMouseButtonInputs(button, action);
+}
+
+void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode)
+{
+	camera.handleKeyboardInputs(key, action);
+}
+
+unsigned int const  numLights = 1;
 LightSource lightSources[numLights];
-
-// Variables for shadow mapping. One depthmap for each light.
-unsigned int depthMapFrameBuffer;
-unsigned int depthCubemap[numLights];
-
-// Checker texture data
-GLubyte imageData[64][64][3];
-unsigned int checkerTexture;
-
-// Load the imageData array with checkerboad pattern
-void loadTextureImageData() {
-	int value;
-	for (int row = 0; row < 64; row++) {
-		for (int col = 0; col < 64; col++) {
-			// Each cell is 8x8, value is 0 or 255 (black or white)
-			value = (((row & 0x8) == 0) ^ ((col & 0x8) == 0)) * 255;
-			imageData[row][col][0] = (GLubyte)value;
-			imageData[row][col][1] = (GLubyte)value;
-			imageData[row][col][2] = (GLubyte)value;
-		}
-	}
-}
 
 void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     buffer = new sf::SoundBuffer();
@@ -132,73 +93,28 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     }
     options = gameOptions;
 
+	int windowWidth, windowHeight;
+	glfwGetWindowSize(window, &windowWidth, &windowHeight);
+
+	// Set up callback functions for input
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
-    glfwSetCursorPosCallback(window, mouseCallback);
+    glfwSetCursorPosCallback(window,mouseCallback);
+	glfwSetMouseButtonCallback(window, mouseButtonCallback);
+	glfwSetKeyCallback(window, keyCallback);
 
 	// Create simple shader program
     shader = new Gloom::Shader();
-	std::vector<std::string> basicShaderFiles{"../res/shaders/simple.vert", "../res/shaders/simple.frag", "../res/shaders/simple.geom"};
+	std::vector<std::string> basicShaderFiles{"../res/shaders/simple.vert", "../res/shaders/simple.frag"};
 	shader->makeBasicShader(basicShaderFiles);
     shader->activate();
 
-	// Create another shader for shadow mapping
-	depthShader = new Gloom::Shader();
-	std::vector<std::string> depthShaderFiles{"../res/shaders/depth.vert", "../res/shaders/depth.frag", "../res/shaders/depth.geom"};
-	depthShader->makeBasicShader(depthShaderFiles);
+	unsigned int emptyVAO;
+	glGenVertexArrays(1, &emptyVAO);
+	glBindVertexArray(emptyVAO);
 
-	// Create ANOTHER shader pair for 2D geometry
-	shader2D = new Gloom::Shader();
-	std::vector<std::string> shader2DFiles{ "../res/shaders/shader2D.vert", "../res/shaders/shader2D.frag" };
-	shader2D->makeBasicShader(shader2DFiles);
+	// Send image resolution to shader
+	glUniform2fv(0, 1, glm::value_ptr(glm::vec2(float(windowWidth), float(windowHeight))));
 
-    // Create meshes
-    Mesh pad = cube(padDimensions, glm::vec2(80), true);
-    Mesh box = cube(boxDimensions, glm::vec2(90), true, true);
-    Mesh sphere = generateSphere(1.0, 40, 40);
-	Mesh wall = cube(wallDimensions, glm::vec2(80), true);
-
-    // Fill buffers
-    unsigned int ballVAO = generateBuffer(sphere);
-    unsigned int boxVAO  = generateBuffer(box);
-    unsigned int padVAO  = generateBuffer(pad);
-	unsigned int wallVAO = generateBuffer(wall);
-
-	// Add tangent and bitangent buffer to box
-	addTangentBuffers(boxVAO, box);
-
-	// Create, load texture data and fill buffer
-	// Font
-	PNGImage charMap = loadPNGFile("../res/textures/charmap.png");
-	Mesh textBuffer = generateTextGeometryBuffer("You just lost The game", (39.0 / 29.0), 900.0);
-	unsigned int textVAO = generateBuffer(textBuffer);
-	Texture* textTexture = new Texture(&charMap);
-
-	// Diffuse texture
-	PNGImage brickImage = loadPNGFile("../res/textures/Brick03_col.png");
-	Texture* brickTexture = new Texture(&brickImage);
-
-	// Normal map
-	PNGImage normalMapImage = loadPNGFile("../res/textures/Brick03_nrm.png");
-	Texture* brickNormalTexture = new Texture(&normalMapImage);
-
-    // Construct scene
-    rootNode = createSceneNode();
-    boxNode  = createSceneNode();
-    padNode  = createSceneNode();
-    ballNode = createSceneNode();
-	wallNode = createSceneNode();
-	textNode = createSceneNode();
-
-	// 2D geometry nodes
-	textNode->nodeType = GEOMETRY_2D;
-	textNode->textureID = textTexture->getTextureID();
-	textNode->position = glm::vec3(0.0, 0.0, 0.0);
-
-	// 3D Normal mapped geometry nodes
-	boxNode->nodeType = GEOMETRY_NORMAL_MAPPED;
-	boxNode->textureID = brickTexture->getTextureID();
-	boxNode->normalMapTextureID = brickNormalTexture->getTextureID();
-	
 	for (int light = 0; light < numLights; light++) {
 		lightSources[light].lightNode = createSceneNode();
 		lightSources[light].lightNode->vertexArrayObjectID = light;
@@ -207,119 +123,9 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 		//lightSources[light].color = glm::vec3(1.0, 1.0, 1.0);
 	}
 
-	rootNode->children.push_back(boxNode);
-	rootNode->children.push_back(padNode);
-	rootNode->children.push_back(ballNode);
-	rootNode->children.push_back(textNode);
-
-	boxNode->children.push_back(lightSources[0].lightNode);
-	boxNode->children.push_back(lightSources[1].lightNode);
-	padNode->children.push_back(lightSources[2].lightNode);
-
-	lightSources[0].lightNode->position = glm::vec3(30.0, -20.0, -25.0);
-	lightSources[1].lightNode->position = glm::vec3(-10.0, -20.0, -15.0);
-	lightSources[2].lightNode->position = glm::vec3(0.0, 20.0, 5.0);
-
-	wallNode->position = glm::vec3(-20.0, 15.0, -10.0);
-
-	wallNode->vertexArrayObjectID = wallVAO;
-	wallNode->VAOIndexCount = wall.indices.size();
-	
-    boxNode->vertexArrayObjectID = boxVAO;
-    boxNode->VAOIndexCount = box.indices.size();
-
-    padNode->vertexArrayObjectID = padVAO;
-    padNode->VAOIndexCount = pad.indices.size();
-
-    ballNode->vertexArrayObjectID = ballVAO;
-    ballNode->VAOIndexCount = sphere.indices.size();
-
-	textNode->vertexArrayObjectID = textVAO;
-	textNode->VAOIndexCount = textBuffer.indices.size();
-
-	// Send number of lights to shader
-	glUniform1i(6, numLights);
-
-	// Set up cubemap and frame buffer for shadow mapping
-	glGenFramebuffers(1, &depthMapFrameBuffer);
-	
-	// Each of the 6 faces is a 2D depth-value texture
-	for (int light = 0; light < numLights; light++) {
-		glGenTextures(1, &depthCubemap[light]);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap[light]);
-		for (unsigned int i = 0; i < 6; ++i) {
-			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, 1024, 1024, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);		// create textures
-		}
-		// Set texture parameters
-		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-
-		// Attach cubemap as the depth attachment of the framebuffer
-		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFrameBuffer);
-		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap[light], 0);
-
-		// Tell OpenGL not to not render to color buffer (only need depth values)
-		glDrawBuffer(GL_NONE);
-		glReadBuffer(GL_NONE);
-
-		// Tell OpenGL which texture unit each sampler belongs to (I should learn how to put everything into one texture. For next time maybe..)
-		GLint location_sampler = shader->getUniformFromName(fmt::format("depthMap[{}]", light));
-		glUniform1i(location_sampler, light);
-	}
-	
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	
-	/*
-	// Create checkerboard texture
-	glGenTextures(1, &checkerTexture);
-	glBindTexture(GL_TEXTURE_2D, checkerTexture);
-
-	loadTextureImageData();   // Load pattern into memory (imageData)
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 64, 64, 0, GL_RGB,
-		GL_UNSIGNED_BYTE, imageData); 
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-	glEnable(GL_TEXTURE_2D);  // Enable 2D texture 
-
-	GLint location_checker = shader->getUniformFromName("checkerTexture");
-	glUniform1i(location_checker, 3);
-
-	glActiveTexture(GL_TEXTURE0 + 3);
-	glBindTexture(GL_TEXTURE_2D, checkerTexture);
-
-	*/
-
-	// Orthographic projection matrix for 2d geometry
-	glm::mat4 orthoProjection = glm::ortho(0.0f, float(windowWidth), 0.0f, float(windowHeight));
-
-	shader2D->activate();
-	glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(orthoProjection));
-	shader->activate();
-
     getTimeDeltaSeconds();
 
-    std::cout << fmt::format("Initialized scene with {} SceneNodes.", totalChildren(rootNode)) << std::endl;
-
     std::cout << "Ready. Click to start!" << std::endl;
-}
-
-std::vector<glm::mat4> lightSpaceTransform(glm::mat4 projection, LightSource light) {
-	// Calculate the 6 different light space matrices for each face of the cubemap used in shadow mapping (look in all 6 directions)
-	std::vector<glm::mat4> shadowTransforms;
-	shadowTransforms.push_back(projection * glm::lookAt(light.worldPos, light.worldPos + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
-	shadowTransforms.push_back(projection * glm::lookAt(light.worldPos, light.worldPos + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
-	shadowTransforms.push_back(projection * glm::lookAt(light.worldPos, light.worldPos + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));
-	shadowTransforms.push_back(projection * glm::lookAt(light.worldPos, light.worldPos + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0)));
-	shadowTransforms.push_back(projection * glm::lookAt(light.worldPos, light.worldPos + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0)));
-	shadowTransforms.push_back(projection * glm::lookAt(light.worldPos, light.worldPos + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0)));
-
-	return shadowTransforms;
 }
 
 void renderNode(SceneNode* node) {
@@ -367,248 +173,19 @@ void renderNode(SceneNode* node) {
 	}
 }
 
-/* Hacky way of rendering only 2D geometry */
-void render2DNode(SceneNode* node)
-{
-	if (node->nodeType == GEOMETRY_2D)
-	{
-		if (node->vertexArrayObjectID != -1) {
-			glBindVertexArray(node->vertexArrayObjectID);
-			glActiveTexture(GL_TEXTURE0 + 10);
-			glBindTexture(GL_TEXTURE_2D, node->textureID);
-			glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
-		}
-	}
-	for (SceneNode* child : node->children) {
-		render2DNode(child);
-	}
-}
-
-float test = 0.0;
 void updateFrame(GLFWwindow* window) {
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     double timeDelta = getTimeDeltaSeconds();
-
-	// Send elapsed time to shader for some fun experiments (NOT RELEVANT FOR ASSIGNMENT)
+	
+	// Send elapsed time to shader
 	float elapsedTime = (std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - startTime).count()) / 1000000.0;
-	GLint location_time = shader->getUniformFromName("elapsedTime");
-	glUniform1f(location_time, elapsedTime);
-	printf("Elapsed time: %f \n", elapsedTime);
-	
-    const float ballBottomY = boxNode->position.y - (boxDimensions.y/2) + ballRadius + padDimensions.y;
-    const float ballTopY    = boxNode->position.y + (boxDimensions.y/2) - ballRadius;
-    const float BallVerticalTravelDistance = ballTopY - ballBottomY;
+	glUniform1f(1, elapsedTime);
 
-    const float cameraWallOffset = 30; // Arbitrary addition to prevent ball from going too much into camera
+	// Update camera and send position to shader
+	camera.updateCamera(timeDelta);
+	glUniform3fv(2, 1, glm::value_ptr(camera.getPosition()));
+	glUniformMatrix3fv(3, 1, GL_FALSE, glm::value_ptr(camera.getRotation()));
 
-    const float ballMinX = boxNode->position.x - (boxDimensions.x/2) + ballRadius;
-    const float ballMaxX = boxNode->position.x + (boxDimensions.x/2) - ballRadius;
-    const float ballMinZ = boxNode->position.z - (boxDimensions.z/2) + ballRadius;
-    const float ballMaxZ = boxNode->position.z + (boxDimensions.z/2) - ballRadius - cameraWallOffset;
-
-    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1)) {
-        mouseLeftPressed = true;
-        mouseLeftReleased = false;
-    } else {
-        mouseLeftReleased = mouseLeftPressed;
-        mouseLeftPressed = false;
-    }
-    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_2)) {
-        mouseRightPressed = true;
-        mouseRightReleased = false;
-    } else {
-        mouseRightReleased = mouseRightPressed;
-        mouseRightPressed = false;
-    }
-    
-    if(!hasStarted) {
-        if (mouseLeftPressed) {
-            if (options.enableMusic) {
-                sound = new sf::Sound();
-                sound->setBuffer(*buffer);
-                sf::Time startTime = sf::seconds(debug_startTime);
-                sound->setPlayingOffset(startTime);
-                sound->play();
-            }
-            totalElapsedTime = debug_startTime;
-            gameElapsedTime = debug_startTime;
-            hasStarted = true;
-        }
-
-        ballPosition.x = ballMinX + (1 - padPositionX) * (ballMaxX - ballMinX);
-        ballPosition.y = ballBottomY + 15;
-        ballPosition.z = ballMinZ + (1 - padPositionZ) * ((ballMaxZ+cameraWallOffset) - ballMinZ);
-    } else {
-        totalElapsedTime += timeDelta;
-        if(hasLost) {
-            if (mouseLeftReleased) {
-                hasLost = false;
-                hasStarted = false;
-                currentKeyFrame = 0;
-                previousKeyFrame = 0;
-            }
-        } else if (isPaused) {
-            if (mouseRightReleased) {
-                isPaused = false;
-                if (options.enableMusic) {
-                    sound->play();
-                }
-            }
-        } else {
-            gameElapsedTime += timeDelta;
-            if (mouseRightReleased) {
-                isPaused = true;
-                if (options.enableMusic) {
-                    sound->pause();
-                }
-            }
-            // Get the timing for the beat of the song
-            for (unsigned int i = currentKeyFrame; i < keyFrameTimeStamps.size(); i++) {
-                if (gameElapsedTime < keyFrameTimeStamps.at(i)) {
-                    continue;
-                }
-                currentKeyFrame = i;
-            }
-
-            jumpedToNextFrame = currentKeyFrame != previousKeyFrame;
-            previousKeyFrame = currentKeyFrame;
-
-            double frameStart = keyFrameTimeStamps.at(currentKeyFrame);
-            double frameEnd = keyFrameTimeStamps.at(currentKeyFrame + 1); // Assumes last keyframe at infinity
-
-            double elapsedTimeInFrame = gameElapsedTime - frameStart;
-            double frameDuration = frameEnd - frameStart;
-            double fractionFrameComplete = elapsedTimeInFrame / frameDuration;
-
-            double ballYCoord;
-
-            KeyFrameAction currentOrigin = keyFrameDirections.at(currentKeyFrame);
-            KeyFrameAction currentDestination = keyFrameDirections.at(currentKeyFrame + 1);
-
-            // Synchronize ball with music
-            if (currentOrigin == BOTTOM && currentDestination == BOTTOM) {
-                ballYCoord = ballBottomY;
-            } else if (currentOrigin == TOP && currentDestination == TOP) {
-                ballYCoord = ballBottomY + BallVerticalTravelDistance;
-            } else if (currentDestination == BOTTOM) {
-                ballYCoord = ballBottomY + BallVerticalTravelDistance * (1 - fractionFrameComplete);
-            } else if (currentDestination == TOP) {
-                ballYCoord = ballBottomY + BallVerticalTravelDistance * fractionFrameComplete;
-            }
-
-            // Make ball move
-            const float ballSpeed = 60.0f;
-            ballPosition.x += timeDelta * ballSpeed * ballDirection.x;
-            ballPosition.y = ballYCoord;
-            ballPosition.z += timeDelta * ballSpeed * ballDirection.z;
-
-            // Make ball bounce
-            if (ballPosition.x < ballMinX) {
-                ballPosition.x = ballMinX;
-                ballDirection.x *= -1;
-            } else if (ballPosition.x > ballMaxX) {
-                ballPosition.x = ballMaxX;
-                ballDirection.x *= -1;
-            }
-            if (ballPosition.z < ballMinZ) {
-                ballPosition.z = ballMinZ;
-                ballDirection.z *= -1;
-            } else if (ballPosition.z > ballMaxZ) {
-                ballPosition.z = ballMaxZ;
-                ballDirection.z *= -1;
-            }
-
-            if(options.enableAutoplay) {
-                padPositionX = 1-(ballPosition.x - ballMinX) / (ballMaxX - ballMinX);
-                padPositionZ = 1-(ballPosition.z - ballMinZ) / ((ballMaxZ+cameraWallOffset) - ballMinZ);
-            }
-
-            // Check if the ball is hitting the pad when the ball is at the bottom.
-            // If not, you just lost the game! (hehe)
-            if (jumpedToNextFrame && currentOrigin == BOTTOM && currentDestination == TOP) {
-                double padLeftX  = boxNode->position.x - (boxDimensions.x/2) + (1 - padPositionX) * (boxDimensions.x - padDimensions.x);
-                double padRightX = padLeftX + padDimensions.x;
-                double padFrontZ = boxNode->position.z - (boxDimensions.z/2) + (1 - padPositionZ) * (boxDimensions.z - padDimensions.z);
-                double padBackZ  = padFrontZ + padDimensions.z;
-
-                if (   ballPosition.x < padLeftX
-                    || ballPosition.x > padRightX
-                    || ballPosition.z < padFrontZ
-                    || ballPosition.z > padBackZ) {
-                    hasLost = true;
-                    if (options.enableMusic) {
-                        sound->stop();
-                        delete sound;
-                    }
-                }
-            }
-        }
-    }
-
-    glm::mat4 projection = glm::perspective(glm::radians(80.0f), float(windowWidth) / float(windowHeight), 0.1f, 350.f);
-
-    glm::vec3 cameraPosition = glm::vec3(0, 2, -20);
-
-	glUniform3fv(10, 1, glm::value_ptr(cameraPosition));
-
-    // Some math to make the camera move in a nice way
-    float lookRotation = -0.6 / (1 + exp(-5 * (padPositionX-0.5))) + 0.3;
-    glm::mat4 cameraTransform = 
-                    glm::rotate(0.3f + 0.2f * float(-padPositionZ*padPositionZ), glm::vec3(1, 0, 0)) *
-                    glm::rotate(lookRotation, glm::vec3(0, 1, 0)) *
-                    glm::translate(-cameraPosition);
-
-    glm::mat4 VP = projection * cameraTransform;
-
-    // Move and rotate various SceneNodes
-    boxNode->position = { 0, -10, -80};
-
-	ballNode->position = ballPosition;
-    ballNode->scale = glm::vec3(ballRadius);
-    ballNode->rotation = { 0, totalElapsedTime*2, 0 };
-
-    padNode->position  = { 
-        boxNode->position.x - (boxDimensions.x/2) + (padDimensions.x/2) + (1 - padPositionX) * (boxDimensions.x - padDimensions.x), 
-        boxNode->position.y - (boxDimensions.y/2) + (padDimensions.y/2), 
-        boxNode->position.z - (boxDimensions.z/2) + (padDimensions.z/2) + (1 - padPositionZ) * (boxDimensions.z - padDimensions.z)
-    };
-	
-	// Adding shadows
-	// Render the scene from the light's perspective using shadow mapping with front-face culling to reduce peter-panning effect
-	glCullFace(GL_FRONT);
-	glm::mat4 shadowProjection = glm::perspective(glm::radians(90.0f), float(1024.0) / float(1024.0), 0.1f, 350.f);	// 1024x1024 shadow map resolution
-	glViewport(0, 0, 1024, 1024);
-	depthShader->activate();
-
-	for (int light = 0; light < numLights; light++) {
-		std::vector<glm::mat4> shadowTransforms = lightSpaceTransform(shadowProjection, lightSources[light]);
-
-		// Send variables to the depth shader
-		for (unsigned int i = 0; i < 6; ++i) {
-			GLint location_shadowMat = depthShader->getUniformFromName(fmt::format("shadowMatrices[{}]", i));
-			glUniformMatrix4fv(location_shadowMat, 1, false, glm::value_ptr(shadowTransforms[i]));
-		}
-		GLint location_lightPos = glGetUniformLocation(depthShader->get(), "lightPos");
-		glUniform3fv(location_lightPos, 1, glm::value_ptr(lightSources[light].worldPos));
-
-		// Render to depth cubemap
-		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFrameBuffer);
-		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap[light], 0);
-		glClear(GL_DEPTH_BUFFER_BIT);
-		// Only render shadows for dynamic objects now :)  TODO: Add static light maps, and maybe add new "rootNode" with a copy of the dynamic objects, and render that instead
-		renderNode(padNode);
-		renderNode(ballNode);
-
-		glActiveTexture(GL_TEXTURE0 + light);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap[light]);
-	}
-	// Scene is rendered again normally in the program.cpp loop
-	shader->activate();
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glCullFace(GL_BACK);
-
-    updateNodeTransformations(rootNode, glm::mat4(1.0f), VP);
 }
 
 void updateNodeTransformations(SceneNode* node, glm::mat4 transformationThusFar, glm::mat4 viewProjection) {
@@ -643,7 +220,10 @@ void renderFrame(GLFWwindow* window) {
     int windowWidth, windowHeight;
     glfwGetWindowSize(window, &windowWidth, &windowHeight);
     glViewport(0, 0, windowWidth, windowHeight);
-	
+
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	/*
 	// Render 3D geometry
     renderNode(rootNode);
 
@@ -651,4 +231,5 @@ void renderFrame(GLFWwindow* window) {
 	shader2D->activate();
 	render2DNode(rootNode);
 	shader->activate();
+	*/
 }
