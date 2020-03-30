@@ -71,6 +71,7 @@ std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now
 void mouseCallback(GLFWwindow* window, double x, double y)
 {
 	camera.handleCursorPosInput(x, y);
+	glfwSetCursorPos(window, windowWidth / 2, windowHeight / 2);
 }
 
 void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)

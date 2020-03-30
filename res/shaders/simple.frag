@@ -5,14 +5,17 @@ struct PointLight {
     vec3 color;
 };
 
-/*
+struct DirectionalLight {    
+    vec3 dir;
+    vec3 color;
+};
+
+
 #define MAX_LIGHTS 3
 
 uniform PointLight pointLights[MAX_LIGHTS];
 
 uniform layout(location = 6) int numLights;
-
-*/
 
 uniform layout(location = 0) vec2 imageResolution;
 
@@ -20,11 +23,43 @@ uniform layout(location = 1) float time;
 
 uniform layout(location = 2) vec3 cameraPosition;
 
-uniform layout(location = 3) mat4 viewMatrix;
+uniform layout(location = 3) mat4 rotMatrix;
+
+const float ambientStrength = 0.35;
+const float specularStrength = 1.0;
+
+const float constant = 1.0;
+const float linear = 0.020;
+const float quadratic = 0.0015;
+
+const float FOV = 2.0;
 
 out vec4 color;
 
-float FOV = 1.0;
+/*======================================================================================*/
+// SDF operations
+
+float opIntersect(float distA, float distB) {
+    return max(distA, distB);
+}
+
+float opUnion(float distA, float distB) {
+    return min(distA, distB);
+}
+
+float opDifference(float distA, float distB) {
+    return max(distA, -distB);
+}
+
+float opOnion(in float sdf, in float thickness)
+{
+    return abs(sdf) - thickness;
+}
+
+float opRound(in float SDFdist, in float rad )
+{
+    return SDFdist - rad;
+}
 
 //Soft max function (continuous)
 float sMax(float a, float b, float k)
@@ -32,7 +67,7 @@ float sMax(float a, float b, float k)
     float h = max(k - abs(a - b), 0.0);
     return max(a, b) + h*h * 0.25 / k;
 }
-/*============================================================*/
+/*======================================================================================*/
 // Signed distance functions (SDF)
 
 float sphereSDF(vec3 p, float radius)
@@ -44,7 +79,13 @@ float boxSDF(vec3 p, vec3 size ) {
      vec3 d = abs(p) - size;
      return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
 }
-/*============================================================*/
+
+float cylinderSDF(vec3 p, float len, float radius )
+{
+  vec2 d = abs(vec2(length(p.xz), p.y)) - vec2(len, radius);
+  return min(max(d.x, d.y), 0.0) + length(max(d, 0.0));
+}
+/*======================================================================================*/
 
 float mapWorld(in vec3 point)
 {
@@ -53,7 +94,7 @@ float mapWorld(in vec3 point)
     return sphere0;
 }
 
-/* Computes the normal by calculating the gradient of the distance field at given point */
+/* Function that computes the normal by calculating the gradient of the distance field at given point */
 vec3 calculateNormal(in vec3 point)
 {
     const vec3 perturbation = vec3(0.001, 0.0, 0.0);
@@ -67,12 +108,39 @@ vec3 calculateNormal(in vec3 point)
     return normalize(normal);
 }
 
-/*============================================================*/
+/*======================================================================================*/
+
+vec3 phongShading(in vec3 lightPos, in vec3 currentPos, in vec3 normal)
+{
+	vec3 ambient;
+	vec3 diffuse;
+	vec3 specular;
+
+	for (int i = 0; i < numLights; i++)
+	{
+		vec3 lightDir = normalize(currentPos - lightPos)
+		vec3 reflectDir = reflect(-lightDir, normal);
+
+		float lightDistance = length(pointLights[i].position - fs_in.fragPos);
+		float lightAttenuation = 1.0 / (constant + linear * lightDistance + quadratic * (lightDistance * lightDistance));
+
+		float diff = max(dot(normal, lightDir), 0.0) * lightAttenuation;
+		float spec = pow(max(dot(viewDir, reflectDir), 0.0), 42) * lightAttenuation; 
+
+		ambient += ambientStrength * pointLights[i].color * lightAttenuation;
+		diffuse += diff * pointLights[i].color;
+		specular += specularStrength * spec * pointLights[i].color;
+	}
+
+	vec3 combined = (ambient + diffuse) * vec3(texture(nodeTexture, fs_in.textureCoordinates)) + specular + dither;
+
+	return combined;
+}
 
 vec3 rayMarch(in vec3 origin, in vec3 dir)
 {
-	const int N_STEPS = 42;
-	const float MIN_HIT_DIST = 0.001;
+	const int N_STEPS = 100;
+	const float MIN_HIT_DIST = 0.01;
 	const float MAX_RAY_DIST = 10000.0;
 	float distTraveled = 0.0;
 
@@ -110,6 +178,7 @@ vec3 rayMarch(in vec3 origin, in vec3 dir)
 
 }
 
+/*======================================================================================*/
 void main()
 {
 	// Generating a ray from the camera (origin) through every pixel
@@ -119,12 +188,7 @@ void main()
 	// Correct for image aspect ratio
 	fragPos.x *= imageResolution.x / imageResolution.y;
 
-	mat4 rot = mat4(cos(time),		0,		sin(time),		0,
-			 				 0,		1.0,			 0,		0,
-					-sin(time),	0,		cos(time),		0,
-							 0, 	0,				 0,		1);
-
-	vec3 rayDir = vec3((viewMatrix) * vec4(vec3(fragPos, FOV), 1.0));
+	vec3 rayDir = vec3(inverse(rotMatrix) * vec4(vec3(fragPos, FOV), 1.0));
 
 	color = vec4(rayMarch(cameraPosition, normalize(rayDir)), 1.0);
 }

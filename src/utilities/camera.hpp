@@ -92,7 +92,7 @@ namespace Gloom
             // Keep track of pitch and yaw for the current frame
             fYaw   = -(xpos - lastXPos);
             fPitch = -(ypos - lastYPos);
-
+			printf("%f", fYaw);
             // Update last known cursor position
             lastXPos = xpos;
             lastYPos = ypos;
@@ -104,18 +104,18 @@ namespace Gloom
         void updateCamera(GLfloat deltaTime)
         {
             // Extract movement information from the view matrix
-            glm::vec3 dirX(matView[0][0], matView[1][0], matView[2][0]);
-            glm::vec3 dirY(matView[0][1], matView[1][1], matView[2][1]);
-            glm::vec3 dirZ(matView[0][2], matView[1][2], matView[2][2]);
+            glm::vec3 dirX(matView[0][0], 0.0f, matView[2][0]);
+            glm::vec3 dirY(0.0f, matView[1][1], 0.0f);
+            glm::vec3 dirZ(matView[0][2], 0.0f, matView[2][2]);
 
             // Alter position in the appropriate direction
             glm::vec3 fMovement(0.0f, 0.0f, 0.0f);
 
             if (keysInUse[GLFW_KEY_W])  // forward
-                fMovement -= dirZ;
+                fMovement +=  dirZ;
 
             if (keysInUse[GLFW_KEY_S])  // backward
-                fMovement += dirZ;
+                fMovement -= dirZ;
 
             if (keysInUse[GLFW_KEY_A])  // left
                 fMovement -= dirX;
@@ -162,7 +162,7 @@ namespace Gloom
             fYaw   = 0.0f;
 
             // Update camera quaternion and normalise
-            cQuaternion = qYaw * qPitch * cQuaternion;
+            cQuaternion = qYaw * cQuaternion * qPitch;
             cQuaternion = glm::normalize(cQuaternion);
 
             // Build rotation matrix using the camera quaternion
