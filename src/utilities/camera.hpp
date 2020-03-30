@@ -33,7 +33,7 @@ namespace Gloom
 		glm::vec3 getPosition() { return cPosition; }
 
 		/* Getter for camera rotation */
-		glm::mat4 getRotation() { return glm::mat4_cast(cQuaternion); }
+		glm::mat4 getRotation() { return glm::mat4_cast(inverse(cQuaternion)); }
 
         /* Getter for the view matrix */
         glm::mat4 getViewMatrix() { return matView; }
@@ -90,8 +90,8 @@ namespace Gloom
             }
 
             // Keep track of pitch and yaw for the current frame
-            fYaw   = xpos - lastXPos;
-            fPitch = ypos - lastYPos;
+            fYaw   = -(xpos - lastXPos);
+            fPitch = -(ypos - lastYPos);
 
             // Update last known cursor position
             lastXPos = xpos;
@@ -166,7 +166,7 @@ namespace Gloom
             cQuaternion = glm::normalize(cQuaternion);
 
             // Build rotation matrix using the camera quaternion
-            glm::mat4 matRotation = glm::mat4_cast(cQuaternion);
+            glm::mat4 matRotation = glm::mat4_cast(inverse(cQuaternion));
 
             // Build translation matrix
             glm::mat4 matTranslate = glm::translate(glm::mat4(1.0f), -cPosition);

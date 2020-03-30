@@ -184,7 +184,7 @@ void updateFrame(GLFWwindow* window) {
 	// Update camera and send position to shader
 	camera.updateCamera(timeDelta);
 	glUniform3fv(2, 1, glm::value_ptr(camera.getPosition()));
-	glUniformMatrix3fv(3, 1, GL_FALSE, glm::value_ptr(camera.getRotation()));
+	glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(camera.getRotation()));
 
 }
 

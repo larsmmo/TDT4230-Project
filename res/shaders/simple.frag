@@ -73,7 +73,7 @@ vec3 rayMarch(in vec3 origin, in vec3 dir)
 {
 	const int N_STEPS = 42;
 	const float MIN_HIT_DIST = 0.001;
-	const float MAX_RAY_DIST = 1000.0;
+	const float MAX_RAY_DIST = 10000.0;
 	float distTraveled = 0.0;
 
 	for (int i = 0; i < N_STEPS; i++)
@@ -124,7 +124,7 @@ void main()
 					-sin(time),	0,		cos(time),		0,
 							 0, 	0,				 0,		1);
 
-	vec3 rayDir = vec3(viewMatrix * vec4(vec3(fragPos, FOV), 1.0));
+	vec3 rayDir = vec3((viewMatrix) * vec4(vec3(fragPos, FOV), 1.0));
 
-	color = vec4(rayMarch(cameraPosition, rayDir), 1.0);
+	color = vec4(rayMarch(cameraPosition, normalize(rayDir)), 1.0);
 }
