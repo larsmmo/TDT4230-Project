@@ -13,10 +13,6 @@ struct DirectionalLight {
 
 #define MAX_LIGHTS 3
 
-uniform PointLight pointLights[MAX_LIGHTS];
-
-uniform layout(location = 6) int numLights;
-
 uniform layout(location = 0) vec2 imageResolution;
 
 uniform layout(location = 1) float time;
@@ -24,6 +20,10 @@ uniform layout(location = 1) float time;
 uniform layout(location = 2) vec3 cameraPosition;
 
 uniform layout(location = 3) mat4 rotMatrix;
+
+uniform layout(location = 4) int numLights;
+
+uniform PointLight pointLights[MAX_LIGHTS];
 
 const float ambientStrength = 0.35;
 const float specularStrength = 1.0;
@@ -110,7 +110,7 @@ vec3 calculateNormal(in vec3 point)
 
 /*======================================================================================*/
 
-vec3 phongShading(in vec3 lightPos, in vec3 currentPos, in vec3 normal)
+vec3 phongShading(in vec3 currentPos, in vec3 normal, in vec3 ray)
 {
 	vec3 ambient;
 	vec3 diffuse;
@@ -118,29 +118,29 @@ vec3 phongShading(in vec3 lightPos, in vec3 currentPos, in vec3 normal)
 
 	for (int i = 0; i < numLights; i++)
 	{
-		vec3 lightDir = normalize(currentPos - lightPos)
-		vec3 reflectDir = reflect(-lightDir, normal);
+		vec3 lightDir = normalize(currentPos - vec3(-2.0, -3.0, 1.0));
+		//vec3 reflectDir = reflect(-lightDir, normal);
 
-		float lightDistance = length(pointLights[i].position - fs_in.fragPos);
-		float lightAttenuation = 1.0 / (constant + linear * lightDistance + quadratic * (lightDistance * lightDistance));
+		//float lightDistance = length(currentPos - vec3(-2.0, -3.0, 1.0));
+		//float lightAttenuation = 1.0 / (constant + linear * lightDistance + quadratic * (lightDistance * lightDistance));
 
-		float diff = max(dot(normal, lightDir), 0.0) * lightAttenuation;
-		float spec = pow(max(dot(viewDir, reflectDir), 0.0), 42) * lightAttenuation; 
+		float diff = max(dot(normal, lightDir), 0.0); //* lightAttenuation;
+		//float spec = pow(max(dot(normalize(ray), reflectDir), 0.0), 42); //* lightAttenuation; 
 
-		ambient += ambientStrength * pointLights[i].color * lightAttenuation;
+		ambient += ambientStrength * pointLights[i].color; //* lightAttenuation;
 		diffuse += diff * pointLights[i].color;
-		specular += specularStrength * spec * pointLights[i].color;
+		//specular += specularStrength * spec * pointLights[i].color;
 	}
 
-	vec3 combined = (ambient + diffuse) * vec3(texture(nodeTexture, fs_in.textureCoordinates)) + specular + dither;
+	vec3 combined = (ambient + diffuse) * vec3(0.5, 0.0, 0.0); //+ specular;
 
 	return combined;
 }
 
 vec3 rayMarch(in vec3 origin, in vec3 dir)
 {
-	const int N_STEPS = 100;
-	const float MIN_HIT_DIST = 0.01;
+	const int N_STEPS = 150;
+	const float MIN_HIT_DIST = 0.0001;
 	const float MAX_RAY_DIST = 10000.0;
 	float distTraveled = 0.0;
 
@@ -156,12 +156,12 @@ vec3 rayMarch(in vec3 origin, in vec3 dir)
         {
 			vec3 normal = calculateNormal(currentPos);
 
-			vec3 lightPos = vec3(-2.0, -3.0, 1.0);
-			vec3 lightDir = normalize(currentPos - lightPos);
+			//vec3 lightPos = vec3(-2.0, -3.0, 1.0);
+			//vec3 lightDir = normalize(currentPos - lightPos);
 
-			float diff = max(0.0, dot(normal, lightDir));
-
-            return vec3(1.0, 0.0, 0.0) * diff ;
+			//float diff = max(0.0, dot(normal, lightDir));
+			vec3 col = phongShading(currentPos, normal, dir);
+            return col;
         }
 
         if (toClosestDist > MAX_RAY_DIST)	// Ray did not hit anything

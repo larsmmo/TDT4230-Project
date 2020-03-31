@@ -13,16 +13,16 @@ C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(77): warning C4
 C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(82): warning C4100: 'mode': unreferenced formal parameter
 C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(82): warning C4100: 'scancode': unreferenced formal parameter
 C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(82): warning C4100: 'window': unreferenced formal parameter
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(97): warning C4459: declaration of 'windowWidth' hides global declaration
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(99): warning C4459: declaration of 'windowWidth' hides global declaration
   C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities/window.hpp(10): note: see declaration of 'windowWidth'
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(97): warning C4459: declaration of 'windowHeight' hides global declaration
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(99): warning C4459: declaration of 'windowHeight' hides global declaration
   C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities/window.hpp(11): note: see declaration of 'windowHeight'
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(182): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(186): warning C4244: 'argument': conversion from 'double' to 'GLfloat', possible loss of data
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(177): warning C4100: 'window': unreferenced formal parameter
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(221): warning C4459: declaration of 'windowWidth' hides global declaration
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(189): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(193): warning C4244: 'argument': conversion from 'double' to 'GLfloat', possible loss of data
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(184): warning C4100: 'window': unreferenced formal parameter
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(228): warning C4459: declaration of 'windowWidth' hides global declaration
   C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities/window.hpp(10): note: see declaration of 'windowWidth'
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(221): warning C4459: declaration of 'windowHeight' hides global declaration
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(228): warning C4459: declaration of 'windowHeight' hides global declaration
   C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities/window.hpp(11): note: see declaration of 'windowHeight'
   raymarching.vcxproj -> C:\Users\Lars Martin\Documents\TDT4230-Project\build\raymarching.exe
   raymarching.vcxproj -> C:/Users/Lars Martin/Documents/TDT4230-Project/build/raymarching.pdb (Full PDB)

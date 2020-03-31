@@ -87,6 +87,8 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
 unsigned int const  numLights = 1;
 LightSource lightSources[numLights];
 
+SceneNode* rootNode;
+
 void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     buffer = new sf::SoundBuffer();
     if (!buffer->loadFromFile("../res/Hall of the Mountain King.ogg")) {
@@ -116,13 +118,23 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 	// Send image resolution to shader
 	glUniform2fv(0, 1, glm::value_ptr(glm::vec2(float(windowWidth), float(windowHeight))));
 
+	rootNode = createSceneNode();
+
+	// Send number of lights to shader
+	glUniform1i(6, numLights);
+
 	for (int light = 0; light < numLights; light++) {
 		lightSources[light].lightNode = createSceneNode();
 		lightSources[light].lightNode->vertexArrayObjectID = light;
 		lightSources[light].lightNode->nodeType = POINT_LIGHT;
-		lightSources[light].color[light] = 1.0;
-		//lightSources[light].color = glm::vec3(1.0, 1.0, 1.0);
+		//lightSources[light].color[light] = 1.0;
+		rootNode->children.push_back(lightSources[light].lightNode);
+		lightSources[light].color = glm::vec3(1.0, 1.0, 1.0);
 	}
+
+	lightSources[0].lightNode->position = glm::vec3(3.0, -2.0, -5.0);
+	//lightSources[1].lightNode->position = glm::vec3(-1.0, -20.0, -5.0);
+	//lightSources[2].lightNode->position = glm::vec3(0.0, 2.0, 5.0);
 
     getTimeDeltaSeconds();
 
@@ -130,11 +142,6 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 }
 
 void renderNode(SceneNode* node) {
-	glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(node->MVPMatrix));
-	glUniformMatrix4fv(4, 1, GL_FALSE, glm::value_ptr(node->currentTransformationMatrix));
-	glm::mat3 normalMatrix = glm::mat3(transpose(inverse(node->currentTransformationMatrix)));
-	glUniformMatrix3fv(5, 1, GL_FALSE, glm::value_ptr(normalMatrix));
-
 	switch (node->nodeType) {
 	case GEOMETRY:
 		if (node->vertexArrayObjectID != -1) {
@@ -221,6 +228,8 @@ void renderFrame(GLFWwindow* window) {
     int windowWidth, windowHeight;
     glfwGetWindowSize(window, &windowWidth, &windowHeight);
     glViewport(0, 0, windowWidth, windowHeight);
+
+	renderNode(rootNode);
 
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
