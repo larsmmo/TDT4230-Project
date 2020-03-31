@@ -84,7 +84,7 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
 	camera.handleKeyboardInputs(key, action);
 }
 
-unsigned int const  numLights = 1;
+unsigned int const  numLights = 3;
 LightSource lightSources[numLights];
 
 SceneNode* rootNode;
@@ -122,20 +122,19 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 
 	// Send number of lights to shader
 	glUniform1i(4, numLights);
-	printf("Lights %i", numLights);
 
 	for (int light = 0; light < numLights; light++) {
 		lightSources[light].lightNode = createSceneNode();
 		lightSources[light].lightNode->vertexArrayObjectID = light;
 		lightSources[light].lightNode->nodeType = POINT_LIGHT;
-		//lightSources[light].color[light] = 1.0;
+		lightSources[light].color[light] = 1.0;
 		rootNode->children.push_back(lightSources[light].lightNode);
-		lightSources[light].color = glm::vec3(1.0, 1.0, 1.0);
+		//lightSources[light].color = glm::vec3(1.0, 1.0, 1.0);
 	}
 
-	lightSources[0].lightNode->position = glm::vec3(3.0, -2.0, -7.0);
-	//lightSources[1].lightNode->position = glm::vec3(-1.0, -20.0, -5.0);
-	//lightSources[2].lightNode->position = glm::vec3(0.0, 2.0, 5.0);
+	lightSources[0].lightNode->position = glm::vec3(7.0, -5.0, 0.0);
+	lightSources[1].lightNode->position = glm::vec3(6.0, 10.0, 3.0);
+	lightSources[2].lightNode->position = glm::vec3(0.0, -10.0, -4.0);
 
     getTimeDeltaSeconds();
 
