@@ -26,7 +26,7 @@ uniform layout(location = 4) int numLights;
 uniform PointLight pointLights[MAX_LIGHTS];
 
 const float ambientStrength = 0.35;
-const float specularStrength = 1.0;
+const float specularStrength = 0.5;
 
 const float constant = 1.0;
 const float linear = 0.020;
@@ -91,7 +91,9 @@ float mapWorld(in vec3 point)
 {
     float sphere0 = boxSDF(point,  vec3(2.0));
 
-    return sphere0;
+	float sphere1 = sphereSDF(point, 6.0);
+
+    return min(sphere0, sphere1);
 }
 
 /* Function that computes the normal by calculating the gradient of the distance field at given point */
@@ -118,21 +120,21 @@ vec3 phongShading(in vec3 currentPos, in vec3 normal, in vec3 ray)
 
 	for (int i = 0; i < numLights; i++)
 	{
-		vec3 lightDir = normalize(currentPos - vec3(-2.0, -3.0, 1.0));
-		//vec3 reflectDir = reflect(-lightDir, normal);
+		vec3 lightDir = normalize(currentPos - pointLights[i].position);
+		vec3 reflectDir = reflect(-lightDir, normal);
 
-		//float lightDistance = length(currentPos - vec3(-2.0, -3.0, 1.0));
-		//float lightAttenuation = 1.0 / (constant + linear * lightDistance + quadratic * (lightDistance * lightDistance));
+		float lightDistance = length(currentPos - pointLights[i].position);
+		float lightAttenuation = 1.0 / (constant + linear * lightDistance + quadratic * (lightDistance * lightDistance));
 
-		float diff = max(dot(normal, lightDir), 0.0); //* lightAttenuation;
-		//float spec = pow(max(dot(normalize(ray), reflectDir), 0.0), 42); //* lightAttenuation; 
+		float diff = max(dot(normal, lightDir), 0.0) * lightAttenuation;
+		float spec = pow(max(dot(normalize(ray), reflectDir), 0.0), 32) * lightAttenuation; 
 
 		ambient += ambientStrength * pointLights[i].color; //* lightAttenuation;
 		diffuse += diff * pointLights[i].color;
-		//specular += specularStrength * spec * pointLights[i].color;
+		specular += specularStrength * spec * pointLights[i].color;
 	}
 
-	vec3 combined = (ambient + diffuse) * vec3(0.5, 0.0, 0.0); //+ specular;
+	vec3 combined = (ambient + diffuse) * vec3(0.5, 0.0, 0.0) + specular;
 
 	return combined;
 }

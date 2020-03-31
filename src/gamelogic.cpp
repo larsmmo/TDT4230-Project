@@ -121,7 +121,8 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 	rootNode = createSceneNode();
 
 	// Send number of lights to shader
-	glUniform1i(6, numLights);
+	glUniform1i(4, numLights);
+	printf("Lights %i", numLights);
 
 	for (int light = 0; light < numLights; light++) {
 		lightSources[light].lightNode = createSceneNode();
@@ -132,7 +133,7 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 		lightSources[light].color = glm::vec3(1.0, 1.0, 1.0);
 	}
 
-	lightSources[0].lightNode->position = glm::vec3(3.0, -2.0, -5.0);
+	lightSources[0].lightNode->position = glm::vec3(3.0, -2.0, -7.0);
 	//lightSources[1].lightNode->position = glm::vec3(-1.0, -20.0, -5.0);
 	//lightSources[2].lightNode->position = glm::vec3(0.0, 2.0, 5.0);
 
@@ -194,6 +195,7 @@ void updateFrame(GLFWwindow* window) {
 	glUniform3fv(2, 1, glm::value_ptr(camera.getPosition()));
 	glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(camera.getRotation()));
 
+	updateNodeTransformations(rootNode, glm::mat4(1.0f), glm::mat4(1.0f));
 }
 
 void updateNodeTransformations(SceneNode* node, glm::mat4 transformationThusFar, glm::mat4 viewProjection) {
