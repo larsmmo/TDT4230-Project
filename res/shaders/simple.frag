@@ -170,8 +170,6 @@ vec3 rayMarch(in vec3 origin, in vec3 dir)
 
 	int step = 0;
 
-	vec3 col;
-
 	float toClosestDist = mapWorld(currentPos)
 	vec3 currentPos;
 
@@ -188,7 +186,7 @@ vec3 rayMarch(in vec3 origin, in vec3 dir)
 		step++;
 	}
 
-	return (step < N_STEPS) ? phongShading(currentPos, normalize(origin - currentPos))
+	return (step < N_STEPS) ? phongShading(currentPos, normalize(origin - currentPos)) : return getSkyColor(origin, dir)
 
 	for (int i = 0; i < N_STEPS; i++)
 	{
