@@ -24,5 +24,40 @@ C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(229): warning C
   C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities/window.hpp(10): note: see declaration of 'windowWidth'
 C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(229): warning C4459: declaration of 'windowHeight' hides global declaration
   C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities/window.hpp(11): note: see declaration of 'windowHeight'
+  main.cpp
+C:\Users\Lars Martin\Documents\TDT4230-Project\lib\arrrgh\arrrgh.hpp(269): warning C4100: 'givenKey': unreferenced formal parameter
+C:\Users\Lars Martin\Documents\TDT4230-Project\lib\arrrgh\arrrgh.hpp(558): warning C4456: declaration of 'i' hides previous local declaration
+  C:\Users\Lars Martin\Documents\TDT4230-Project\lib\arrrgh\arrrgh.hpp(501): note: see declaration of 'i'
+  program.cpp
+c:\users\lars martin\documents\tdt4230-project\lib\glm\glm\ext\../detail/type_quat.hpp(58): warning C4201: nonstandard extension used: nameless struct/union
+  c:\users\lars martin\documents\tdt4230-project\lib\glm\glm\ext\../detail/type_quat.hpp(137): note: see reference to class template instantiation 'glm::qua<T,Q>' being compiled
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities/shader.hpp(90): warning C4018: '<': signed/unsigned mismatch
+  sceneGraph.cpp
+c:\users\lars martin\documents\tdt4230-project\lib\glm\glm\ext\../detail/type_quat.hpp(58): warning C4201: nonstandard extension used: nameless struct/union
+  c:\users\lars martin\documents\tdt4230-project\lib\glm\glm\ext\../detail/type_quat.hpp(137): note: see reference to class template instantiation 'glm::qua<T,Q>' being compiled
+  texture.cpp
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities/shader.hpp(90): warning C4018: '<': signed/unsigned mismatch
+c:\users\lars martin\documents\tdt4230-project\lib\glm\glm\ext\../detail/type_quat.hpp(58): warning C4201: nonstandard extension used: nameless struct/union
+  c:\users\lars martin\documents\tdt4230-project\lib\glm\glm\ext\../detail/type_quat.hpp(137): note: see reference to class template instantiation 'glm::qua<T,Q>' being compiled
+  glfont.cpp
+  glutils.cpp
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities\glutils.cpp(27): warning C4018: '<': signed/unsigned mismatch
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities\glutils.cpp(22): warning C4100: 'normals': unreferenced formal parameter
+  imageLoader.cpp
+  lodepng.cpp
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities\lodepng.cpp(129): warning C4551: function call missing argument list
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities\lodepng.cpp(763): warning C4267: '=': conversion from 'size_t' to 'unsigned short', possible loss of data
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities\lodepng.cpp(787): warning C4267: '=': conversion from 'size_t' to 'unsigned short', possible loss of data
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities\lodepng.cpp(804): warning C4267: '=': conversion from 'size_t' to 'unsigned short', possible loss of data
+  shapes.cpp
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities\shapes.cpp(105): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities\shapes.cpp(105): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities\shapes.cpp(106): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities\shapes.cpp(106): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
+  timeutils.cpp
+  Generating Code...
+c:\users\lars martin\documents\tdt4230-project\src\utilities\imageloader.cpp(28): warning C4701: potentially uninitialized local variable 'height' used
+c:\users\lars martin\documents\tdt4230-project\src\utilities\imageloader.cpp(26): warning C4701: potentially uninitialized local variable 'width' used
+  glad.c
   raymarching.vcxproj -> C:\Users\Lars Martin\Documents\TDT4230-Project\build\raymarching.exe
   raymarching.vcxproj -> C:/Users/Lars Martin/Documents/TDT4230-Project/build/raymarching.pdb (Full PDB)
