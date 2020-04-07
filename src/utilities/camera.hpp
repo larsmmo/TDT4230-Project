@@ -90,8 +90,8 @@ namespace Gloom
             }
 
             // Keep track of pitch and yaw for the current frame
-            fYaw   = -(xpos - lastXPos);
-            fPitch = -(ypos - lastYPos);
+            fYaw   = (xpos - lastXPos);
+            fPitch = (ypos - lastYPos);
             // Update last known cursor position
             lastXPos = xpos;
             lastYPos = ypos;

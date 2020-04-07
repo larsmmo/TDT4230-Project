@@ -71,7 +71,7 @@ std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now
 void mouseCallback(GLFWwindow* window, double x, double y)
 {
 	camera.handleCursorPosInput(x, y);
-	glfwSetCursorPos(window, windowWidth / 2, windowHeight / 2);
+	//glfwSetCursorPos(window, windowWidth / 2, windowHeight / 2);
 }
 
 void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
@@ -100,7 +100,7 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 	glfwGetWindowSize(window, &windowWidth, &windowHeight);
 
 	// Set up callback functions for input
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(window,mouseCallback);
 	glfwSetMouseButtonCallback(window, mouseButtonCallback);
 	glfwSetKeyCallback(window, keyCallback);

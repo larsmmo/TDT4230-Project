@@ -35,6 +35,11 @@ const float quadratic = 0.0015;
 const float FOV = 2.0;
 
 out vec4 color;
+/*======================================================================================*/
+// Noise functions
+
+float rand(vec2 co) { return fract(sin(dot(co.xy, vec2(12.9898,78.233))) * 43758.5453); }
+float dither(vec2 uv) { return (rand(uv)*2.0-1.0) / 256.0; }
 
 /*======================================================================================*/
 // SDF operations
@@ -60,7 +65,6 @@ float opRound(in float SDFdist, in float rad )
 {
     return SDFdist - rad;
 }
-
 
 //Soft max function (continuous)
 float sMax(float a, float b, float k)
@@ -146,9 +150,12 @@ vec3 phongShading(in vec3 currentPos, in vec3 normal, in vec3 ray)
 	return combined;
 }
 
-vec3 getSkyColor(in vec3 rayDir, in vec3 sunPos)
+vec3 getSkyColor(in vec3 cameraPos, in vec3 rayDir)
 {
-	return vec3(0.0);
+	// Create gradient for sky color. Brighter blue at horizon.
+	vec3 col = vec3(0.4, 0.5, 0.9)- rayDir.y * vec3(0.3, 0.3, 0.5);
+
+	return col;
 }
 
 vec3 rayMarch(in vec3 origin, in vec3 dir)
@@ -157,6 +164,31 @@ vec3 rayMarch(in vec3 origin, in vec3 dir)
 	const float MIN_HIT_DIST = 0.0001;
 	const float MAX_RAY_DIST = 10000.0;
 	float distTraveled = 0.0;
+
+	float lh = 0.0f;
+    float ly = 0.0f;
+
+	int step = 0;
+
+	vec3 col;
+
+	float toClosestDist = mapWorld(currentPos)
+	vec3 currentPos;
+
+	while (toClosestDist > MIN_HIT_DIST && step < N_STEPS)
+	{
+		
+		// Current position along ray from the origin
+        currentPos = origin + distTraveled * dir;
+
+        // Find distance from current position to closest point on a sphere with radius = 1 from the origin
+        toClosestDist = mapWorld(currentPos);
+
+		distTraveled += toClosestDist;
+		step++;
+	}
+
+	return (step < N_STEPS) ? phongShading(currentPos, normalize(origin - currentPos))
 
 	for (int i = 0; i < N_STEPS; i++)
 	{
@@ -168,6 +200,7 @@ vec3 rayMarch(in vec3 origin, in vec3 dir)
 
         if (toClosestDist < MIN_HIT_DIST)	// Ray hit something
         {
+			//currentPos -= 0.5 * toClosestDist;		// Use midpoint
 			vec3 normal = calculateNormal(currentPos);
 
 			vec3 col = phongShading(currentPos, normal, normalize(origin - currentPos));
@@ -175,9 +208,9 @@ vec3 rayMarch(in vec3 origin, in vec3 dir)
             return col;
         }
 
-        if (toClosestDist > MAX_RAY_DIST)	// Ray did not hit anything
+        if (toClosestDist > MAX_RAY_DIST)		//Nothing was hit. Returning sky
         {
-            break;
+            return getSkyColor(origin, dir);
         }
 
 		// Add to total distance traveled along ray
@@ -186,7 +219,6 @@ vec3 rayMarch(in vec3 origin, in vec3 dir)
 
 	//Nothing was hit. Returning background color
     return vec3(0.0);
-
 }
 
 /*======================================================================================*/
@@ -201,5 +233,7 @@ void main()
 
 	vec3 rayDir = vec3(inverse(rotMatrix) * vec4(vec3(fragPos, FOV), 1.0));
 
-	color = vec4(rayMarch(cameraPosition, normalize(rayDir)), 1.0);
+	float dither = dither(fragPos);
+
+	color = vec4(rayMarch(cameraPosition, normalize(rayDir)) + dither, 1.0);
 }
