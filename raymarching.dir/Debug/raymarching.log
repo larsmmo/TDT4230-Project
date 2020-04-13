@@ -8,56 +8,22 @@ c:\users\lars martin\documents\tdt4230-project\src\utilities/camera.hpp(93): war
 c:\users\lars martin\documents\tdt4230-project\src\utilities/camera.hpp(94): warning C4244: '=': conversion from 'double' to 'GLfloat', possible loss of data
 c:\users\lars martin\documents\tdt4230-project\src\utilities/camera.hpp(96): warning C4244: '=': conversion from 'double' to 'GLfloat', possible loss of data
 c:\users\lars martin\documents\tdt4230-project\src\utilities/camera.hpp(97): warning C4244: '=': conversion from 'double' to 'GLfloat', possible loss of data
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(77): warning C4100: 'mods': unreferenced formal parameter
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(77): warning C4100: 'window': unreferenced formal parameter
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(82): warning C4100: 'mode': unreferenced formal parameter
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(82): warning C4100: 'scancode': unreferenced formal parameter
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(82): warning C4100: 'window': unreferenced formal parameter
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(99): warning C4459: declaration of 'windowWidth' hides global declaration
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(73): warning C4100: 'window': unreferenced formal parameter
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(79): warning C4100: 'mods': unreferenced formal parameter
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(79): warning C4100: 'window': unreferenced formal parameter
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(84): warning C4100: 'mode': unreferenced formal parameter
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(84): warning C4100: 'scancode': unreferenced formal parameter
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(84): warning C4100: 'window': unreferenced formal parameter
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(101): warning C4459: declaration of 'windowWidth' hides global declaration
   C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities/window.hpp(10): note: see declaration of 'windowWidth'
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(99): warning C4459: declaration of 'windowHeight' hides global declaration
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(101): warning C4459: declaration of 'windowHeight' hides global declaration
   C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities/window.hpp(11): note: see declaration of 'windowHeight'
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(189): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(193): warning C4244: 'argument': conversion from 'double' to 'GLfloat', possible loss of data
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(184): warning C4100: 'window': unreferenced formal parameter
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(229): warning C4459: declaration of 'windowWidth' hides global declaration
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(190): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(194): warning C4244: 'argument': conversion from 'double' to 'GLfloat', possible loss of data
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(186): warning C4100: 'window': unreferenced formal parameter
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(230): warning C4459: declaration of 'windowWidth' hides global declaration
   C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities/window.hpp(10): note: see declaration of 'windowWidth'
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(229): warning C4459: declaration of 'windowHeight' hides global declaration
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(230): warning C4459: declaration of 'windowHeight' hides global declaration
   C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities/window.hpp(11): note: see declaration of 'windowHeight'
-  main.cpp
-C:\Users\Lars Martin\Documents\TDT4230-Project\lib\arrrgh\arrrgh.hpp(269): warning C4100: 'givenKey': unreferenced formal parameter
-C:\Users\Lars Martin\Documents\TDT4230-Project\lib\arrrgh\arrrgh.hpp(558): warning C4456: declaration of 'i' hides previous local declaration
-  C:\Users\Lars Martin\Documents\TDT4230-Project\lib\arrrgh\arrrgh.hpp(501): note: see declaration of 'i'
-  program.cpp
-c:\users\lars martin\documents\tdt4230-project\lib\glm\glm\ext\../detail/type_quat.hpp(58): warning C4201: nonstandard extension used: nameless struct/union
-  c:\users\lars martin\documents\tdt4230-project\lib\glm\glm\ext\../detail/type_quat.hpp(137): note: see reference to class template instantiation 'glm::qua<T,Q>' being compiled
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities/shader.hpp(90): warning C4018: '<': signed/unsigned mismatch
-  sceneGraph.cpp
-c:\users\lars martin\documents\tdt4230-project\lib\glm\glm\ext\../detail/type_quat.hpp(58): warning C4201: nonstandard extension used: nameless struct/union
-  c:\users\lars martin\documents\tdt4230-project\lib\glm\glm\ext\../detail/type_quat.hpp(137): note: see reference to class template instantiation 'glm::qua<T,Q>' being compiled
-  texture.cpp
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities/shader.hpp(90): warning C4018: '<': signed/unsigned mismatch
-c:\users\lars martin\documents\tdt4230-project\lib\glm\glm\ext\../detail/type_quat.hpp(58): warning C4201: nonstandard extension used: nameless struct/union
-  c:\users\lars martin\documents\tdt4230-project\lib\glm\glm\ext\../detail/type_quat.hpp(137): note: see reference to class template instantiation 'glm::qua<T,Q>' being compiled
-  glfont.cpp
-  glutils.cpp
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities\glutils.cpp(27): warning C4018: '<': signed/unsigned mismatch
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities\glutils.cpp(22): warning C4100: 'normals': unreferenced formal parameter
-  imageLoader.cpp
-  lodepng.cpp
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities\lodepng.cpp(129): warning C4551: function call missing argument list
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities\lodepng.cpp(763): warning C4267: '=': conversion from 'size_t' to 'unsigned short', possible loss of data
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities\lodepng.cpp(787): warning C4267: '=': conversion from 'size_t' to 'unsigned short', possible loss of data
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities\lodepng.cpp(804): warning C4267: '=': conversion from 'size_t' to 'unsigned short', possible loss of data
-  shapes.cpp
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities\shapes.cpp(105): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities\shapes.cpp(105): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities\shapes.cpp(106): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities\shapes.cpp(106): warning C4244: 'initializing': conversion from 'double' to 'const float', possible loss of data
-  timeutils.cpp
-  Generating Code...
-c:\users\lars martin\documents\tdt4230-project\src\utilities\imageloader.cpp(28): warning C4701: potentially uninitialized local variable 'height' used
-c:\users\lars martin\documents\tdt4230-project\src\utilities\imageloader.cpp(26): warning C4701: potentially uninitialized local variable 'width' used
-  glad.c
   raymarching.vcxproj -> C:\Users\Lars Martin\Documents\TDT4230-Project\build\raymarching.exe
   raymarching.vcxproj -> C:/Users/Lars Martin/Documents/TDT4230-Project/build/raymarching.pdb (Full PDB)

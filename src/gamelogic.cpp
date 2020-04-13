@@ -68,6 +68,8 @@ double lastMouseY = windowHeight / 2;
 
 std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
+static int frames = 0;
+
 void mouseCallback(GLFWwindow* window, double x, double y)
 {
 	camera.handleCursorPosInput(x, y);
@@ -182,9 +184,8 @@ void renderNode(SceneNode* node) {
 }
 
 void updateFrame(GLFWwindow* window) {
-
     double timeDelta = getTimeDeltaSeconds();
-	
+
 	// Send elapsed time to shader
 	float elapsedTime = (std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - startTime).count()) / 1000000.0;
 	glUniform1f(1, elapsedTime);
@@ -232,7 +233,22 @@ void renderFrame(GLFWwindow* window) {
 
 	renderNode(rootNode);
 
+	double timeDelta;
+	if (frames > 50)
+	{
+		timeDelta = getTimeDeltaSeconds();
+	}
+
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	if (frames > 50)
+	{
+		timeDelta = getTimeDeltaSeconds();
+		printf("MS per frame: %f \n", timeDelta);
+		frames = 0;
+	}
+
+	frames++;
 
 	/*
 	// Render 3D geometry

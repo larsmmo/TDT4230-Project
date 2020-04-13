@@ -10,7 +10,7 @@ struct DirectionalLight {
     vec3 color;
 };
 
-
+#define FLT_MAX 3.402823466e+38
 #define MAX_LIGHTS 3
 
 uniform layout(location = 0) vec2 imageResolution;
@@ -48,8 +48,8 @@ float opIntersect(float distA, float distB) {
     return max(distA, distB);
 }
 
-float opUnion(float distA, float distB) {
-    return min(distA, distB);
+vec2 opUnion(vec2 distA, vec2 distB) {
+    return (distA.x < distB.x) ? distA : distB;
 }
 
 float opDifference(float distA, float distB) {
@@ -92,19 +92,11 @@ float cylinderSDF(vec3 p, float len, float radius )
 }
 /*======================================================================================*/
 
-float mapWorld(in vec3 point)
+vec2 mapWorld(in vec3 point)
 {
-    float dist = boxSDF(point,  vec3(2.0));
+    vec2 ground = vec2(boxSDF(point,  vec3(2.0)), 0.0);			// 0 = Object ID
 
-	for (int light = 0; light < numLights; light++)
-	{
-		dist = opUnion(dist, sphereSDF(point - pointLights[light].position, 1.0));
-	}
-
-	dist = opUnion(dist, sphereSDF(point - vec3(5.0, 5.0, 0.0), 1.0));
-
-    //return min(sphere0, sphere1);
-	return dist;
+	return ground;
 }
 
 /* Function that computes the normal by calculating the gradient of the distance field at given point */
@@ -112,9 +104,9 @@ vec3 calculateNormal(in vec3 point)
 {
     const vec3 perturbation = vec3(0.001, 0.0, 0.0);
 
-    float gradX = mapWorld(point + perturbation.xyy) - mapWorld(point - perturbation.xyy);
-    float gradY = mapWorld(point + perturbation.yxy) - mapWorld(point - perturbation.yxy);
-    float gradZ = mapWorld(point + perturbation.yyx) - mapWorld(point - perturbation.yyx);
+    float gradX = mapWorld(point + perturbation.xyy).x - mapWorld(point - perturbation.xyy).x;
+    float gradY = mapWorld(point + perturbation.yxy).x - mapWorld(point - perturbation.yxy).x;
+    float gradZ = mapWorld(point + perturbation.yyx).x - mapWorld(point - perturbation.yyx).x;
 
     vec3 normal = vec3(gradX, gradY, gradZ);
 
@@ -123,11 +115,13 @@ vec3 calculateNormal(in vec3 point)
 
 /*======================================================================================*/
 
-vec3 phongShading(in vec3 currentPos, in vec3 normal, in vec3 ray)
+vec3 phongShading(in vec3 currentPos, float candidateObj, in vec3 ray)
 {
 	vec3 ambient;
 	vec3 diffuse;
 	vec3 specular;
+
+	vec3 normal = calculateNormal(currentPos);
 
 	for (int i = 0; i < numLights; i++)
 	{
@@ -163,17 +157,21 @@ vec3 rayMarch(in vec3 origin, in vec3 dir)
 	const int N_STEPS = 150;
 	const float MIN_HIT_DIST = 0.0001;
 	const float MAX_RAY_DIST = 10000.0;
-	float distTraveled = 0.0;
 
 	float lh = 0.0f;
     float ly = 0.0f;
 
 	int step = 0;
 
-	float toClosestDist = mapWorld(currentPos)
-	vec3 currentPos;
+	vec3 currentPos = origin;
+	vec2 toClosestDist = mapWorld(currentPos);
+	float distTraveled = 0.0;
 
-	while (toClosestDist > MIN_HIT_DIST && step < N_STEPS)
+	vec3 candidatePos = origin;
+	float candidateError = FLT_MAX;
+	float candidateObj = 0.0;
+
+	while (toClosestDist.x > MIN_HIT_DIST && step < N_STEPS)
 	{
 		
 		// Current position along ray from the origin
@@ -182,41 +180,16 @@ vec3 rayMarch(in vec3 origin, in vec3 dir)
         // Find distance from current position to closest point on a sphere with radius = 1 from the origin
         toClosestDist = mapWorld(currentPos);
 
-		distTraveled += toClosestDist;
+		distTraveled += toClosestDist.x;
+
+		candidateError = min(candidateError, toClosestDist.x);
+		candidatePos = (candidateError < toClosestDist.x) ? candidatePos : origin + distTraveled * dir;
+		candidateObj = (candidateError < toClosestDist.x) ? candidateObj : toClosestDist.y;
+
 		step++;
 	}
-
-	return (step < N_STEPS) ? phongShading(currentPos, normalize(origin - currentPos)) : return getSkyColor(origin, dir)
-
-	for (int i = 0; i < N_STEPS; i++)
-	{
-		// Current position along ray from the origin
-        vec3 currentPos = origin + distTraveled * dir;
-
-        // Find distance from current position to closest point on a sphere with radius = 1 from the origin
-        float toClosestDist = mapWorld(currentPos);
-
-        if (toClosestDist < MIN_HIT_DIST)	// Ray hit something
-        {
-			//currentPos -= 0.5 * toClosestDist;		// Use midpoint
-			vec3 normal = calculateNormal(currentPos);
-
-			vec3 col = phongShading(currentPos, normal, normalize(origin - currentPos));
-
-            return col;
-        }
-
-        if (toClosestDist > MAX_RAY_DIST)		//Nothing was hit. Returning sky
-        {
-            return getSkyColor(origin, dir);
-        }
-
-		// Add to total distance traveled along ray
-        distTraveled += toClosestDist;
-	}
-
-	//Nothing was hit. Returning background color
-    return vec3(0.0);
+	
+	return (toClosestDist.x > MAX_RAY_DIST) ? getSkyColor(origin, dir) : phongShading(candidatePos, candidateObj, normalize(origin - candidatePos));
 }
 
 /*======================================================================================*/
