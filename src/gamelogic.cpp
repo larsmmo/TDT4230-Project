@@ -129,9 +129,9 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 		lightSources[light].lightNode = createSceneNode();
 		lightSources[light].lightNode->vertexArrayObjectID = light;
 		lightSources[light].lightNode->nodeType = POINT_LIGHT;
-		lightSources[light].color[light] = 1.0;
+		//lightSources[light].color[light] = 1.0;
 		rootNode->children.push_back(lightSources[light].lightNode);
-		//lightSources[light].color = glm::vec3(1.0, 1.0, 1.0);
+		lightSources[light].color = glm::vec3(1.0, 1.0, 1.0);
 	}
 
 	lightSources[0].lightNode->position = glm::vec3(7.0, -5.0, 0.0);
