@@ -86,7 +86,7 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
 	camera.handleKeyboardInputs(key, action);
 }
 
-unsigned int const  numLights = 3;
+unsigned int const  numLights = 2;
 LightSource lightSources[numLights];
 
 SceneNode* rootNode;
