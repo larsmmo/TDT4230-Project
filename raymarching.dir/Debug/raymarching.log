@@ -18,12 +18,12 @@ C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(101): warning C
   C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities/window.hpp(10): note: see declaration of 'windowWidth'
 C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(101): warning C4459: declaration of 'windowHeight' hides global declaration
   C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities/window.hpp(11): note: see declaration of 'windowHeight'
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(190): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(194): warning C4244: 'argument': conversion from 'double' to 'GLfloat', possible loss of data
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(186): warning C4100: 'window': unreferenced formal parameter
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(230): warning C4459: declaration of 'windowWidth' hides global declaration
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(192): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(196): warning C4244: 'argument': conversion from 'double' to 'GLfloat', possible loss of data
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(188): warning C4100: 'window': unreferenced formal parameter
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(232): warning C4459: declaration of 'windowWidth' hides global declaration
   C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities/window.hpp(10): note: see declaration of 'windowWidth'
-C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(230): warning C4459: declaration of 'windowHeight' hides global declaration
+C:\Users\Lars Martin\Documents\TDT4230-Project\src\gamelogic.cpp(232): warning C4459: declaration of 'windowHeight' hides global declaration
   C:\Users\Lars Martin\Documents\TDT4230-Project\src\utilities/window.hpp(11): note: see declaration of 'windowHeight'
   raymarching.vcxproj -> C:\Users\Lars Martin\Documents\TDT4230-Project\build\raymarching.exe
   raymarching.vcxproj -> C:/Users/Lars Martin/Documents/TDT4230-Project/build/raymarching.pdb (Full PDB)

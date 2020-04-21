@@ -133,10 +133,12 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 		rootNode->children.push_back(lightSources[light].lightNode);
 		lightSources[light].color = glm::vec3(1.0, 1.0, 1.0);
 	}
+	lightSources[1].color = glm::vec3(1.0, 0.0, 0.0);
+	//lightSources[2].color = glm::vec3(1.0, 0.0, 0.0);
 
-	lightSources[0].lightNode->position = glm::vec3(7.0, -5.0, 0.0);
-	lightSources[1].lightNode->position = glm::vec3(6.0, 10.0, 3.0);
-	lightSources[2].lightNode->position = glm::vec3(0.0, -10.0, -4.0);
+	lightSources[0].lightNode->position = glm::vec3(7.0, 1.0, -4.0);
+	lightSources[1].lightNode->position = glm::vec3(0.0, 5.0, 25.0);
+	//lightSources[2].lightNode->position = glm::vec3(30.0, 5.0, 25.0);
 
     getTimeDeltaSeconds();
 

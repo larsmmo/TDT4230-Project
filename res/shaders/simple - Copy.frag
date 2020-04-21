@@ -12,9 +12,9 @@ struct DirectionalLight {
 
 vec3 objectColors[] = {
 	{0.2, 0.8, 0.3},	// Grass color
-	{0.7, 0.7, 0.7},	// Column color
+	{0.8, 0.7, 0.8},	// Column color
 	{0.7, 0.7, 0.6},	// Floor color
-	{0.25, 0.20, 0.3},	// Roof color
+	{0.8, 0.7, 0.8},	// Roof color
 	{0.5, 0.7, 0.7}//{0.7, 0.9, 0.7}		// Sea color
 	};
 
@@ -44,9 +44,8 @@ const float quadratic = 0.0015;
 
 const float FOV = 2.0;
 
-const vec3 SEA_COLOR = vec3(0.8,0.9,0.6);
+const vec3 SEA_COLOR = vec3(0.7, 0.9, 0.7);
 const float MAX_HEIGHT_SEA = 5.0;
-const float SEA_LEVEL = 3.7;
 
 out vec4 color;
 /*======================================================================================*/
@@ -55,24 +54,23 @@ out vec4 color;
 float rand(vec2 co) { return fract(sin(dot(co.xy, vec2(12.9898,78.233))) * 43758.5453); }	// from gloom
 float dither(vec2 uv) { return (rand(uv)*2.0-1.0) / 256.0; }
 
-// Bilinear noise interpolation for random values
+// Smoothstep interpolation generates a smooth output from an input between 0 and 1
 float interpolateNoise(in vec2 point)
 {
 	vec2 i = floor(point);
-	
-	vec2 u = smoothstep(0.0, 1.0, fract(point)); // Smoothstep interpolation generates a smooth output from an input between 0 and 1
+    vec2 f = fract(point);
+	vec2 u = f*f * (3.0 - 2.0 * f);
 
-	return -1.0+2.0*mix(						// Bilinear interpolation
+	return -1.0+2.0*mix( 
                 mix( rand(i + vec2(0.0,0.0)), 
                      rand(i + vec2(1.0,0.0)), 
                      u.x),
                 mix( rand(i + vec2(0.0,1.0)), 
                      rand(i + vec2(1.0,1.0)), 
                      u.x), 
-					 u.y);
+                u.y);
 }
 
-// Generates waves
 float generateOctave(vec2 uv, float choppiness)
 {
 	uv += interpolateNoise(uv);
@@ -120,7 +118,7 @@ vec3 opRepeatLim(in vec3 point, in float period, in vec3 length)
     return (point - period *clamp(round(point / period), -length, length));
 }
 
-//Soft Min function (continuous) From : https://www.iquilezles.org/www/articles/smin/smin.htm
+//Soft Min function (continuous) Inspired by : https://www.iquilezles.org/www/articles/smin/smin.htm
 vec2 sMin(vec2 distA, vec2 distB, float k)
 {
     float h = max(k - abs(distA.x - distB.x), 0.0) / k;
@@ -200,29 +198,29 @@ vec2 mapWorld(in vec3 point)
 // Computes distance straight down to sea from a given point (y-direction)
 float getSeaDist(vec3 point)
 {
-	vec2 uv = vec2(point.x, point.z);		// xy-grid for heightmap
+	vec2 uv = vec2(point.x * (3/4), point.z);		// xy-grid for heightmap
 
-	float choppiness = 4.0;
-	float frequency = 0.15;
-	float amplitude = 0.7;
+	float frequency = 0.16;
+	float amplitude = 0.6;
 
 	float wave = 0.0;
 	float height = 0.0;
+	float choppiness = 4.0;
 
-	for(int i = 0; i < 5; i++)
+	for(int i = 0; i < 4; i++)
 	{
-		wave = generateOctave((uv + (time*0.55)) * frequency, choppiness);		// Vary with time for movement
-		wave += generateOctave((uv - (time*0.55)) * frequency, choppiness);
+		wave = generateOctave((uv + time) * frequency, choppiness);		// Vary with time for movement
+		wave += generateOctave((uv + time) * frequency, choppiness);
 		height += wave * amplitude;
 		uv *= mat2(1.6,1.2,-1.2,1.6);		// Create assymmetry
 
-		amplitude *= 0.20;					// Finer detail in later iterations -> decrease amplitude and frequency
-		frequency *= 1.83;		
+		amplitude *= 0.22;					// Finer detail in later iterations -> decrease amplitude and frequency
+		frequency *= 1.9;		
 
 		choppiness = mix(choppiness, 1.0, 0.20);		// Make wave shapes differ from iteration to iteration
 	}
 
-	return (point.y - height) + SEA_LEVEL;		// +2.7 sets sea level
+	return (point.y - height) + 2.7;		// +2.7 sets sea level
 }
 
 /* Function that computes the normal by calculating the gradient of the distance field at given point */
@@ -255,28 +253,6 @@ vec3 calculateSeaNormal(in vec3 point)
 
 /*======================================================================================*/
 
-// Penumbra shadows from : https://www.iquilezles.org/www/articles/rmshadows/rmshadows.htm
-
-float calculateSoftShadow(in vec3 origin, in vec3 rayDir, in float minDist, in float maxDist )
-{
-    // bounding volume
-    float tp = (3.0 - origin.y) / rayDir.y;
-	
-	if(tp > 0.0) {maxDist = min(maxDist, tp);}
-
-    float res = 1.0;
-    float distTraveled = minDist;
-    for( int i=0; i<16; i++ )
-    {
-		float h = mapWorld(origin + rayDir * distTraveled).x;
-        float shadow = clamp(8.0 * h / distTraveled, 0.0, 1.0);
-        res = min(res, shadow*shadow*(3.0-2.0 * shadow) );	// Smoothstep
-        distTraveled += clamp(h, 0.02, 0.10);
-        if( res < 0.005 || distTraveled > maxDist ) break;
-    }
-    return clamp( res, 0.3, 1.0 );		// Set lower limit on shadow 
-}
-
 vec3 phongShading(in vec3 currentPos, int candidateObj, in vec3 ray)
 {
 	vec3 ambient;
@@ -293,12 +269,10 @@ vec3 phongShading(in vec3 currentPos, int candidateObj, in vec3 ray)
 		float lightDistance = length(pointLights[i].position - currentPos);
 		float lightAttenuation = 1.0 / (constant + linear * lightDistance + quadratic * (lightDistance * lightDistance));
 
-		float shadow = calculateSoftShadow(currentPos, lightDir, 0.1, 3.0);
+		float diff = clamp(max(dot(lightDir, normal), 0.0) * lightAttenuation, 0.0, 1.0);
+		float spec = clamp(pow(max(dot(normalize(ray), reflectDir), 0.0), 32) * lightAttenuation, 0.0, 1.0); 
 
-		float diff = clamp(max(dot(lightDir, normal), 0.0) * lightAttenuation, 0.0, 1.0) * shadow;
-		float spec = clamp(pow(max(dot(normalize(ray), reflectDir), 0.0), 32) * lightAttenuation, 0.0, 1.0) * shadow; 
-
-		ambient += ambientStrength * pointLights[i].color * lightAttenuation * shadow;
+		ambient += ambientStrength * pointLights[i].color * lightAttenuation;
 		diffuse += diff * pointLights[i].color;
 		specular += specularStrength * spec * pointLights[i].color;
 	}
@@ -311,23 +285,22 @@ vec3 phongShading(in vec3 currentPos, int candidateObj, in vec3 ray)
 vec3 getSkyColor(in vec3 rayDir)
 {
 	// Create gradient for sky color. Brighter blue at horizon.
-	vec3 col = vec3(0.4, 0.5, 0.9) * 0.3 - rayDir.y * vec3(0.3, 0.3, 0.4);
+	vec3 col = vec3(0.4, 0.5, 0.9)- rayDir.y * vec3(0.3, 0.3, 0.5);
 
 	return col;
 }
 
-vec3 getSeaColor(in vec3 cameraPos, in vec3 currentPos, in vec3 ray, in float seaDist)
+vec3 getSeaColor(in vec3 point, in vec3 cameraPos, in vec3 currentPos, in vec3 ray)
 {
-	vec3 normal = calculateSeaNormal(currentPos);
+	vec3 normal = calculateNormal(currentPos);
 
 	vec3 ambient;
 	vec3 diffuse;
 	vec3 specular;
 
-	float fresnel = 1.0 - max(dot(normal, - ray), 0.0);		// Fresnel allows more reflection when camera is looking at sea with a low angle
+	float fresnel = 1.0 - max(dot(normal, -cameraPos), 0.0);		// Fresnel allows more reflection when camera is looking at sea with a low angle
     fresnel = pow(fresnel, 3.0) * 0.65;
 
-	//Phong for diffuse, ambient and specular calculations
 	for (int i = 0; i < numLights; i++)
 	{
 		vec3 lightDir = normalize(pointLights[i].position - currentPos);
@@ -336,29 +309,31 @@ vec3 getSeaColor(in vec3 cameraPos, in vec3 currentPos, in vec3 ray, in float se
 		float lightDistance = length(pointLights[i].position - currentPos);
 		float lightAttenuation = 1.0 / (constant + linear * lightDistance + quadratic * (lightDistance * lightDistance));
 
-		float shadow = calculateSoftShadow(currentPos, lightDir, 0.1, 3.0);
-
-		float diff = clamp(max(dot(lightDir, normal), 0.0) * lightAttenuation, 0.0, 1.0) * shadow;
-		float spec = clamp(pow(max(dot(normalize(ray), reflectDir), 0.0), 32) * lightAttenuation, 0.0, 1.0) * shadow; 
+		float diff = clamp(max(dot(lightDir, normal), 0.0) * lightAttenuation, 0.0, 1.0);
+		float spec = clamp(pow(max(dot(normalize(ray), reflectDir), 0.0), 32) * lightAttenuation, 0.0, 1.0); 
 
 		ambient += ambientStrength * pointLights[i].color * lightAttenuation;
 		diffuse += diff * pointLights[i].color;
 		specular += specularStrength * spec * pointLights[i].color;
 	}
 
-	vec3 refraction = vec3(0.15, 0.2, 0.4) * (ambient + diffuse) + SEA_COLOR * diffuse * 0.1;
-	vec3 reflection = getSkyColor(normalize(reflect(ray, normal)));		// Only sky reflection for now
-
-	// Light gets attenuated more when traveling through water
-	float waterAttenuation = max(0.0, 1.0 - (0.0003 * exp(seaDist * 0.01))) * 0.15;		// A bit hacky, but gives decent result. at a distance we can only see wavetops, so we attenuate less further away for consistency
+	/*
+	vec3 refraction = vec3(0.1, 0.2, 0.25) + diffuse * SEA_COLOR * 0.12;
+	vec3 reflection = getSkyColor(cameraPos, reflect(cameraPos, normal));		// Only sky reflection for now
 
 	// Blend refraction and reflection based on angle between view dir and normal (fresnel)
-	vec3 col = mix(refraction, reflection, fresnel);
-	col += SEA_COLOR * (currentPos.y - 0.6) * waterAttenuation;
-	col += ambient * SEA_COLOR + specular;
+	vec3 col = mix(refraction, reflection, fresnel) + ambient;
 
-	// Mix color with sky color at a distance to create fog effect
-	col = mix(col, getSkyColor(ray), (1.0-exp(-seaDist * 0.004)));
+	// Light gets attenuated when traveling through water
+	float waterAttenuation = max(0.0, 1.0 - (0.001 * dot(dist, dist));
+
+	col += SEA_COLOR * (point-y - MAX_HEIGHT_SEA) * waterAttenuation * 0.2;
+	
+	col += specular;
+	*/
+
+	vec3 col = (ambient + diffuse) * SEA_COLOR + specular;
+
 	return col;
 }
 
@@ -385,18 +360,17 @@ vec3 rayMarch(in vec3 origin, in vec3 dir)
 	// First we raymarch sea
 
 	vec3 currentSeaPos = origin;
-	float stepSize = 0.0;		
-	float farDist = 1000.0;				// tx
-	float nearDist = 0.0;				// tm
+	float startHeight = getSeaDist(currentPos);
+	float stepSize = 0.0;
+	float farDist = 1000.0;
+	float nearDist = 0.0;
 	float seaDist = FLT_MAX;
 
 	// If point at max distance along ray is above water, we know that the ray will hit sky or an object, so we can skip sea tracing
-	float maxSeaDist = getSeaDist(currentPos + farDist * dir);	// hx
+	float maxSeaDist = getSeaDist(currentPos + farDist * dir);
 	if (maxSeaDist > 0.0) {
-		step = N_STEPS_SEA +1; //return getSkyColor(dir);
+		return getSkyColor(dir); //step = N_STEPS_SEA +1;
 		}
-
-	float startHeight = getSeaDist(currentSeaPos);				//hm
 
 	while (step < N_STEPS_SEA)
 	{
@@ -406,12 +380,12 @@ vec3 rayMarch(in vec3 origin, in vec3 dir)
 		// Also, if we are looking straight down at the sea we take smaller steps, and bigger if we are looking at horizon.
 		//		- Intersection between sea and ray can be very far along the ray if we are looking at the horizon.
 
-		stepSize = mix(nearDist, farDist, startHeight / (startHeight - maxSeaDist));		
+		stepSize = mix(nearDist, maxSeaDist, startHeight / (startHeight - maxSeaDist));
 
 		// Current position along ray from the origin
         currentSeaPos = origin + dir * stepSize;
 
-		float newDist = getSeaDist(currentSeaPos);
+		float newDist = getSeaDist(currentPos);
 
 		if (newDist < 0.0){			// New point is below water -> go forward less next iteration by decreasing stepsize
 			farDist = stepSize;
@@ -423,9 +397,9 @@ vec3 rayMarch(in vec3 origin, in vec3 dir)
 		seaDist = stepSize;				// Distance from camera to sea hit
 		step++;
 	}
-
-	//return getSeaColor(origin, currentSeaPos, dir, seaDist);
-
+	return calculateSeaNormal(currentSeaPos);
+}
+	/*
 	// Now we raymarch objects
 	step = 0;
 	while (toClosestDist.x > MIN_HIT_DIST && step < N_STEPS && distTraveled < seaDist)		// Terminate if at max distance, steps are exceeded, or the sea is in front of any object
@@ -445,14 +419,10 @@ vec3 rayMarch(in vec3 origin, in vec3 dir)
 
 		step++;
 	}
-
-	vec3 col;
-	col = (maxSeaDist > 0.0) ? getSkyColor(dir) : getSeaColor(origin, currentSeaPos, dir, seaDist);
-	return (distTraveled < seaDist) ? phongShading(currentPos, candidateObj, dir) : col;
 	
-	//return (toClosestDist.x > MAX_RAY_DIST) ? getSkyColor(dir) : phongShading(currentSeaPos, 4, normalize(origin - currentSeaPos));
+	return (toClosestDist.x > MAX_RAY_DIST) ? getSkyColor(dir) : phongShading(currentSeaPos, 4, normalize(origin - currentSeaPos));
 }
-
+*/
 
 /*======================================================================================*/
 void main()
