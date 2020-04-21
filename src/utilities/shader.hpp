@@ -4,6 +4,7 @@
 
 // System headers
 #include <glad/glad.h>
+#include <vector>
 
 // Standard headers
 #include <cassert>

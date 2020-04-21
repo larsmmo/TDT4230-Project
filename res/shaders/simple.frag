@@ -63,11 +63,11 @@ float interpolateNoise(in vec2 point)
 	vec2 u = smoothstep(0.0, 1.0, fract(point)); // Smoothstep interpolation generates a smooth output from an input between 0 and 1
 
 	return -1.0+2.0*mix(						// Bilinear interpolation
-                mix( rand(i + vec2(0.0,0.0)), 
-                     rand(i + vec2(1.0,0.0)), 
+                mix( rand(floor(point) + vec2(0.0,0.0)), 
+                     rand(floor(point) + vec2(1.0,0.0)), 
                      u.x),
-                mix( rand(i + vec2(0.0,1.0)), 
-                     rand(i + vec2(1.0,1.0)), 
+                mix( rand(floor(point) + vec2(0.0,1.0)), 
+                     rand(floor(point) + vec2(1.0,1.0)), 
                      u.x), 
 					 u.y);
 }
@@ -214,7 +214,7 @@ float getSeaDist(vec3 point)
 		wave = generateOctave((uv + (time*0.55)) * frequency, choppiness);		// Vary with time for movement
 		wave += generateOctave((uv - (time*0.55)) * frequency, choppiness);
 		height += wave * amplitude;
-		uv *= mat2(1.6,1.2,-1.2,1.6);		// Create assymmetry
+		uv *= mat2(1.4, -1.3, 1.1, 1.5);		// Create assymmetry by multiplying with some random values
 
 		amplitude *= 0.20;					// Finer detail in later iterations -> decrease amplitude and frequency
 		frequency *= 1.83;		
@@ -266,17 +266,18 @@ float calculateSoftShadow(in vec3 origin, in vec3 rayDir, in float minDist, in f
 
     float res = 1.0;
     float distTraveled = minDist;
-    for( int i=0; i<16; i++ )
+    for( int i=0; i<24; i++ )
     {
-		float h = mapWorld(origin + rayDir * distTraveled).x;
-        float shadow = clamp(8.0 * h / distTraveled, 0.0, 1.0);
+		vec2 h = mapWorld(origin + normalize(rayDir) * distTraveled);
+        float shadow = clamp(7.0 * h.x / distTraveled, 0.0, 1.0);
         res = min(res, shadow*shadow*(3.0-2.0 * shadow) );	// Smoothstep
-        distTraveled += clamp(h, 0.02, 0.10);
+        distTraveled += clamp(h.x, 0.02, 0.1);
         if( res < 0.005 || distTraveled > maxDist ) break;
     }
-    return clamp( res, 0.3, 1.0 );		// Set lower limit on shadow 
+    return clamp(res, 0.3, 1.0 );		// Set a lower limit on shadow 
 }
 
+// Phong shading from previous assignment deliveries
 vec3 phongShading(in vec3 currentPos, int candidateObj, in vec3 ray)
 {
 	vec3 ambient;
@@ -336,21 +337,19 @@ vec3 getSeaColor(in vec3 cameraPos, in vec3 currentPos, in vec3 ray, in float se
 		float lightDistance = length(pointLights[i].position - currentPos);
 		float lightAttenuation = 1.0 / (constant + linear * lightDistance + quadratic * (lightDistance * lightDistance));
 
-		float shadow = calculateSoftShadow(currentPos, lightDir, 0.1, 3.0);
-
-		float diff = clamp(max(dot(lightDir, normal), 0.0) * lightAttenuation, 0.0, 1.0) * shadow;
-		float spec = clamp(pow(max(dot(normalize(ray), reflectDir), 0.0), 32) * lightAttenuation, 0.0, 1.0) * shadow; 
+		float diff = clamp(max(dot(lightDir, normal), 0.0) * lightAttenuation, 0.0, 1.0);
+		float spec = clamp(pow(max(dot(normalize(ray), reflectDir), 0.0), 32) * lightAttenuation, 0.0, 1.0); 
 
 		ambient += ambientStrength * pointLights[i].color * lightAttenuation;
 		diffuse += diff * pointLights[i].color;
 		specular += specularStrength * spec * pointLights[i].color;
 	}
 
-	vec3 refraction = vec3(0.15, 0.2, 0.4) * (ambient + diffuse) + SEA_COLOR * diffuse * 0.1;
-	vec3 reflection = getSkyColor(normalize(reflect(ray, normal)));		// Only sky reflection for now
+	vec3 refraction = vec3(0.13, 0.21, 0.21) * (ambient + diffuse) + SEA_COLOR * diffuse * 0.1;
+	vec3 reflection = getSkyColor(reflect(ray, normal));		// Only sky reflection for now
 
 	// Light gets attenuated more when traveling through water
-	float waterAttenuation = max(0.0, 1.0 - (0.0003 * exp(seaDist * 0.01))) * 0.15;		// A bit hacky, but gives decent result. at a distance we can only see wavetops, so we attenuate less further away for consistency
+	float waterAttenuation = max(0.0, 1.0 - exp(seaDist * 0.25) * 0.006) * 0.08 / (1.0 + seaDist * 0.001);		// A bit hacky, but gives a decent result. At a distance we can only see wavetops, so I attenuate less further away for consistency
 
 	// Blend refraction and reflection based on angle between view dir and normal (fresnel)
 	vec3 col = mix(refraction, reflection, fresnel);
@@ -364,13 +363,9 @@ vec3 getSeaColor(in vec3 cameraPos, in vec3 currentPos, in vec3 ray, in float se
 
 vec3 rayMarch(in vec3 origin, in vec3 dir)
 {
-	const int N_STEPS = 150;
-	const int N_STEPS_SEA = 10;
+	const int N_STEPS = 140;
 	const float MIN_HIT_DIST = 0.0001;
 	const float MAX_RAY_DIST = 1000.0;
-
-	float lh = 0.0f;
-    float ly = 0.0f;
 
 	int step = 0;
 
@@ -384,6 +379,7 @@ vec3 rayMarch(in vec3 origin, in vec3 dir)
 
 	// First we raymarch sea
 
+	const int N_STEPS_SEA = 10;
 	vec3 currentSeaPos = origin;
 	float stepSize = 0.0;		
 	float farDist = 1000.0;				// tx
@@ -449,8 +445,6 @@ vec3 rayMarch(in vec3 origin, in vec3 dir)
 	vec3 col;
 	col = (maxSeaDist > 0.0) ? getSkyColor(dir) : getSeaColor(origin, currentSeaPos, dir, seaDist);
 	return (distTraveled < seaDist) ? phongShading(currentPos, candidateObj, dir) : col;
-	
-	//return (toClosestDist.x > MAX_RAY_DIST) ? getSkyColor(dir) : phongShading(currentSeaPos, 4, normalize(origin - currentSeaPos));
 }
 
 

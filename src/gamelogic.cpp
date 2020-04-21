@@ -1,14 +1,10 @@
 #include <chrono>
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
-#include <SFML/Audio/SoundBuffer.hpp>
 #include <utilities/shader.hpp>
 #include <glm/vec3.hpp>
 #include <iostream>
 #include <utilities/timeutils.h>
-#include <utilities/mesh.h>
-#include <utilities/shapes.h>
-#include <utilities/glutils.h>
 #include <SFML/Audio/Sound.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -20,28 +16,12 @@
 #include "utilities/camera.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/transform.hpp>
-#include "utilities/imageLoader.hpp"
-#include "utilities/glfont.h"
-#include "texture.hpp"
 
-enum KeyFrameAction {
-    BOTTOM, TOP
-};
-
-#include <timestamps.h>
-
-double padPositionX = 0;
-double padPositionZ = 0;
-
-unsigned int currentKeyFrame = 0;
-unsigned int previousKeyFrame = 0;
 
 // These are heap allocated, because they should not be initialised at the start of the program
-sf::SoundBuffer* buffer;
 Gloom::Shader* shader;
 Gloom::Shader* depthShader;
 Gloom::Shader* shader2D;
-sf::Sound* sound;
 
 CommandLineOptions options;
 
@@ -86,16 +66,12 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
 	camera.handleKeyboardInputs(key, action);
 }
 
-unsigned int const  numLights = 2;
+unsigned int const  numLights = 1;
 LightSource lightSources[numLights];
 
 SceneNode* rootNode;
 
 void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
-    buffer = new sf::SoundBuffer();
-    if (!buffer->loadFromFile("../res/Hall of the Mountain King.ogg")) {
-        return;
-    }
     options = gameOptions;
 
 	int windowWidth, windowHeight;
@@ -133,41 +109,18 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 		rootNode->children.push_back(lightSources[light].lightNode);
 		lightSources[light].color = glm::vec3(1.0, 1.0, 1.0);
 	}
-	lightSources[1].color = glm::vec3(1.0, 0.0, 0.0);
+	//lightSources[1].color = glm::vec3(1.0, 0.0, 0.0);
 	//lightSources[2].color = glm::vec3(1.0, 0.0, 0.0);
 
-	lightSources[0].lightNode->position = glm::vec3(7.0, 1.0, -4.0);
-	lightSources[1].lightNode->position = glm::vec3(0.0, 5.0, 25.0);
+	lightSources[0].lightNode->position = glm::vec3(7.0, 0.0, 0.0);
+	//lightSources[1].lightNode->position = glm::vec3(0.0, 5.0, 25.0);
 	//lightSources[2].lightNode->position = glm::vec3(30.0, 5.0, 25.0);
 
     getTimeDeltaSeconds();
-
-    std::cout << "Ready. Click to start!" << std::endl;
 }
 
 void renderNode(SceneNode* node) {
 	switch (node->nodeType) {
-	case GEOMETRY:
-		if (node->vertexArrayObjectID != -1) {
-			glBindVertexArray(node->vertexArrayObjectID);
-			glActiveTexture(GL_TEXTURE0 + 11);
-			glBindTexture(GL_TEXTURE_2D, node->textureID);
-			glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
-		}
-		break;
-	case GEOMETRY_NORMAL_MAPPED:
-		if (node->vertexArrayObjectID != -1) {
-			// Set conditional flag and bind texture
-			glUniform1i(11, 1);
-			glBindVertexArray(node->vertexArrayObjectID);
-			glActiveTexture(GL_TEXTURE0 + 12);
-			glBindTexture(GL_TEXTURE_2D, node->normalMapTextureID);
-			glActiveTexture(GL_TEXTURE0 + 11);
-			glBindTexture(GL_TEXTURE_2D, node->textureID);
-			glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
-			glUniform1i(11, 0);
-		}
-		break;
 	case POINT_LIGHT:
 	{
 		GLint location_position = shader->getUniformFromName(fmt::format("pointLights[{}].position", node->vertexArrayObjectID));		// Vertex array obj ID = light ID
@@ -177,7 +130,6 @@ void renderNode(SceneNode* node) {
 		glUniform3fv(location_color, 1, glm::value_ptr(lightSources[node->vertexArrayObjectID].color));
 	}
 	break;
-	case SPOT_LIGHT: break;
 	}
 
 	for (SceneNode* child : node->children) {
@@ -235,30 +187,5 @@ void renderFrame(GLFWwindow* window) {
 
 	renderNode(rootNode);
 
-	double timeDelta;
-	if (frames > 50)
-	{
-		timeDelta = getTimeDeltaSeconds();
-	}
-
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-	if (frames > 50)
-	{
-		timeDelta = getTimeDeltaSeconds();
-		printf("MS per frame: %f \n", timeDelta);
-		frames = 0;
-	}
-
-	frames++;
-
-	/*
-	// Render 3D geometry
-    renderNode(rootNode);
-
-	// Render 2D geometry
-	shader2D->activate();
-	render2DNode(rootNode);
-	shader->activate();
-	*/
 }
