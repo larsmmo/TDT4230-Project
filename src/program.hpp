@@ -11,7 +11,7 @@
 
 
 // Main OpenGL program
-void runProgram(GLFWwindow* window, CommandLineOptions options);
+void runProgram(GLFWwindow* window);
 
 
 // Function for handling keypresses

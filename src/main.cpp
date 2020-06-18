@@ -8,8 +8,6 @@
 
 // Standard headers
 #include <cstdlib>
-#include <arrrgh.hpp>
-
 
 // A callback which allows GLFW to report errors whenever they occur
 static void glfwErrorCallback(int error, const char *description)
@@ -70,39 +68,11 @@ GLFWwindow* initialise()
 
 int main(int argc, const char* argb[])
 {
-    arrrgh::parser parser("glowbox", "Small breakout like juggling game");
-    const auto& showHelp = parser.add<bool>("help", "Show this help message.", 'h', arrrgh::Optional, false);
-		const auto& enableMusic = parser.add<bool>("enable-music", "Play background music while the game is playing", 'm', arrrgh::Optional, false);				// hell yes
-		const auto& enableAutoplay = parser.add<bool>("autoplay", "Let the game play itself automatically. Useful for testing.", 'a', arrrgh::Optional, false);
-
-    // If you want to add more program arguments, define them here,
-    // but do not request their value here (they have not been parsed yet at this point).
-    try
-    {
-        parser.parse(argc, argb);
-    }
-    catch (const std::exception& e)
-    {
-        std::cerr << "Error parsing arguments: " << e.what() << std::endl;
-        parser.show_usage(std::cerr);
-        exit(1);
-    }
-
-    // Show help if desired
-    if(showHelp.value())
-    {
-        return 0;
-    }
-
-    CommandLineOptions options;
-    options.enableMusic = enableMusic.value();
-    options.enableAutoplay = enableAutoplay.value();
-
     // Initialise window using GLFW
     GLFWwindow* window = initialise();
 
     // Run an OpenGL application using this window
-    runProgram(window, options);
+    runProgram(window);
 
     // Terminate GLFW (no need to call glfwDestroyWindow)
     glfwTerminate();

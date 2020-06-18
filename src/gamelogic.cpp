@@ -5,7 +5,6 @@
 #include <glm/vec3.hpp>
 #include <iostream>
 #include <utilities/timeutils.h>
-#include <SFML/Audio/Sound.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <fmt/format.h>
@@ -22,8 +21,6 @@
 Gloom::Shader* shader;
 Gloom::Shader* depthShader;
 Gloom::Shader* shader2D;
-
-CommandLineOptions options;
 
 Gloom::Camera camera(glm::vec3(0.0f, 0.0f, -5.0f));
 
@@ -71,8 +68,7 @@ LightSource lightSources[numLights];
 
 SceneNode* rootNode;
 
-void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
-    options = gameOptions;
+void initGame(GLFWwindow* window) {
 
 	int windowWidth, windowHeight;
 	glfwGetWindowSize(window, &windowWidth, &windowHeight);

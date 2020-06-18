@@ -11,7 +11,7 @@
 #include <utilities/timeutils.h>
 
 
-void runProgram(GLFWwindow* window, CommandLineOptions options)
+void runProgram(GLFWwindow* window)
 {
     // Enable depth (Z) buffer (accept "closest" fragment)
     glEnable(GL_DEPTH_TEST);
@@ -30,7 +30,7 @@ void runProgram(GLFWwindow* window, CommandLineOptions options)
     // Set default colour after clearing the colour buffer
     glClearColor(0.3f, 0.5f, 0.8f, 1.0f);
 
-	initGame(window, options);
+	initGame(window);
 
     // Rendering Loop
     while (!glfwWindowShouldClose(window))

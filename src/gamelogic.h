@@ -13,7 +13,7 @@ struct LightSource {
 // LightSource lightSources[/*Put number of light sources you want here*/];
 
 void updateNodeTransformations(SceneNode* node, glm::mat4 transformationThusFar, glm::mat4 viewProjection);
-void initGame(GLFWwindow* window, CommandLineOptions options);
+void initGame(GLFWwindow* window);
 void updateFrame(GLFWwindow* window);
 void renderFrame(GLFWwindow* window);
 
